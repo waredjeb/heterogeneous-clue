@@ -1,0 +1,28 @@
+# backup files
+*~
+# intermediate directories and build targets
+/external/
+/obj/
+/lib/
+/test/
+/.original_env
+/env.sh
+# data
+/data/*.tar.gz
+/data/*.bin
+/data/data_ok
+# build targets
+/alpaka
+/alpakatest
+/cuda
+/cudacompat
+/cudadev
+/cudatest
+/cudauvm
+/fwtest
+/hip
+/hiptest
+/kokkos
+/kokkostest
+/serial
+/sycltest
