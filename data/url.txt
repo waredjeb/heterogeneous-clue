@@ -1,1 +1,1 @@
-https://fpantale.web.cern.ch/fpantale/heterogeneous_clue/heterogeneous_clue_input_data.tar.gz
+https://mkortela.web.cern.ch/mkortela/patatrack/standalone/data_v2.tar.gz
