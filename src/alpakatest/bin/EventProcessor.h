@@ -35,6 +35,15 @@ namespace edm {
                             std::filesystem::path const& datadir,
                             bool validation);
 
+    explicit EventProcessor(int maxEvents,
+                            int runForMinutes,
+                            int numberOfStreams,
+                            Alternatives alternatives,
+                            std::vector<std::string> const& esproducers,
+                            std::filesystem::path const& datadir,
+                            std::filesystem::path const& inputFile,
+                            bool validation);
+
     int maxEvents() const { return source_.maxEvents(); }
     int processedEvents() const { return source_.processedEvents(); }
     std::vector<std::pair<Backend, int>> const& backends() const { return streamsPerBackend_; }

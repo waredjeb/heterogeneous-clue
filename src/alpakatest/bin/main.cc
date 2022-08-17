@@ -38,8 +38,9 @@ namespace {
 #ifdef ALPAKA_ACC_GPU_HIP_PRESENT
         << "[--hip] "
 #endif
-        << "[--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--data PATH] "
-           "[--transfer]\n\n"
+        << "[--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--data PATH] [--inputFile "
+           "PATH] [--transfer] [--validation] "
+           "[--empty]\n\n"
         << "Options\n"
 #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
         << " --serial            Use CPU Serial backend\n"
@@ -59,7 +60,10 @@ namespace {
         << " --runForMinutes     Continue processing the set of 1000 events until this many minutes have passed "
            "(default -1 for disabled; conflicts with --maxEvents)\n"
         << " --data              Path to the 'data' directory (default 'data' in the directory of the executable)\n"
+        << " --inputFile         Path to the input file to cluster with CLUE (default is set to "
+           "data/input/toyDetector_1k.csv)'\n"
         << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
+        << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
         << " --empty             Ignore all producers (for testing only)\n"
         << std::endl;
   }
@@ -104,6 +108,7 @@ bool getOptionalArgument(std::vector<std::string> const& args,
     return false;
   }
   value = *it;
+  ++i;
   return true;
 }
 
@@ -124,7 +129,9 @@ int main(int argc, char** argv) {
   int maxEvents = -1;
   int runForMinutes = -1;
   std::filesystem::path datadir;
+  std::filesystem::path inputFile;
   bool transfer = false;
+  bool validation = false;
   bool empty = false;
   for (auto i = args.begin() + 1, e = args.end(); i != e; ++i) {
     if (*i == "-h" or *i == "--help") {
@@ -163,9 +170,16 @@ int main(int argc, char** argv) {
     } else if (*i == "--runForMinutes") {
       getArgument(args, i, runForMinutes);
     } else if (*i == "--data") {
+      std::cout << "Data directory passed!\n" << std::endl;
       getArgument(args, i, datadir);
+      std::cout << "Datadir: " << datadir << std::endl;
+    } else if (*i == "--inputFile") {
+      getArgument(args, i, inputFile);
     } else if (*i == "--transfer") {
       transfer = true;
+    } else if (*i == "--validation") {
+      transfer = true;
+      validation = true;
     } else if (*i == "--empty") {
       empty = true;
     } else {
@@ -190,6 +204,12 @@ int main(int argc, char** argv) {
   if (not std::filesystem::exists(datadir)) {
     std::cout << "Data directory '" << datadir << "' does not exist" << std::endl;
     return EXIT_FAILURE;
+  }
+  if (inputFile.empty()) {
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_1k.csv";
+  }
+  if (not std::filesystem::exists(inputFile)) {
+    std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
   }
 
   // Initialiase the selected backends
@@ -219,22 +239,30 @@ int main(int argc, char** argv) {
   edm::Alternatives alternatives;
   if (not empty) {
     // host-only ESModules
-    esmodules = {"IntESProducer"};
+    esmodules = {"PointsCloudESProducer"};
     for (auto const& [backend, weight] : backends) {
       std::string prefix = "alpaka_" + name(backend) + "::";
       // "portable" EDModules
       std::vector<std::string> edmodules;
-      edmodules.emplace_back(prefix + "TestProducer");
-      edmodules.emplace_back(prefix + "TestProducer3");
-      edmodules.emplace_back(prefix + "TestProducer2");
+      edmodules.emplace_back(prefix + "PointsCloudProducer");  //{"PointsCloudToAlpaka", "CLUEAlpakaClusterizer"};
       if (transfer) {
         // add modules for transfer
+      }
+      if (validation) {
+        esmodules.emplace_back("ValidatorPointsCloudESProducer");
+        edmodules.emplace_back(prefix + "ValidatorPointsCloudToAlpaka");
       }
       alternatives.emplace_back(backend, weight, std::move(edmodules));
     }
   }
-  edm::EventProcessor processor(
-      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), datadir, false);
+  edm::EventProcessor processor(maxEvents,
+                                runForMinutes,
+                                numberOfStreams,
+                                std::move(alternatives),
+                                std::move(esmodules),
+                                datadir,
+                                inputFile,
+                                validation);
 
   if (runForMinutes < 0) {
     std::cout << "Processing " << processor.maxEvents() << " events,";

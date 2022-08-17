@@ -45,6 +45,46 @@ namespace edm {
     }
   }
 
+  EventProcessor::EventProcessor(int maxEvents,
+                                 int runForMinutes,
+                                 int numberOfStreams,
+                                 Alternatives alternatives,
+                                 std::vector<std::string> const& esproducers,
+                                 std::filesystem::path const& datadir,
+                                 std::filesystem::path const& inputFile,
+                                 bool validation)
+      : source_(maxEvents, runForMinutes, registry_, datadir, validation) {
+    for (auto const& name : esproducers) {
+      pluginManager_.load(name);
+      if (name == "PointsCloudESProducer" or name == "CLUEOutputESProducer" or name == "CLUEValidatorESProducer" or
+          name == "ValidatorPointsCloudESProducer") {
+        auto esp = ESPluginFactory::create(name, inputFile);
+        esp->produce(eventSetup_);
+      } else {
+        auto esp = ESPluginFactory::create(name, datadir);
+      }
+    }
+
+    // normalise the total weight to the number of streams
+    float total = 0.;
+    for (auto const& alternative : alternatives) {
+      total += alternative.weight;
+    }
+    //schedules_.reserve(numberOfStreams);
+    float cumulative = 0.;
+    int lower_range = 0;
+    int upper_range = 0;
+    for (auto& alternative : alternatives) {
+      cumulative += alternative.weight;
+      lower_range = upper_range;
+      upper_range = static_cast<int>(std::round(cumulative * numberOfStreams / total));
+      for (int i = lower_range; i < upper_range; ++i) {
+        schedules_.emplace_back(registry_, pluginManager_, &source_, &eventSetup_, i, alternative.path);
+      }
+      streamsPerBackend_.emplace_back(alternative.backend, upper_range - lower_range);
+    }
+  }
+
   void EventProcessor::runToCompletion() {
     source_.startProcessing();
     // The task that waits for all other work
