@@ -100,8 +100,7 @@ endif
 DATA_BASE := $(BASE_DIR)/data
 export DATA_DEPS := $(DATA_BASE)/data_ok
 DATA_TAR_GZ := $(DATA_BASE)/data.tar.gz
-DATA_INPUT_TAR_GZ := $(DATA_BASE)/data_input.tar.gz
-DATA_REF_TAR_GZ := $(DATA_BASE)/data_reference.tar.gz
+DATA_CLUE_TAR_GZ := $(DATA_BASE)/clue_data.tar.gz
 
 # External definitions
 EXTERNAL_BASE := $(BASE_DIR)/external
@@ -254,19 +253,40 @@ ifdef KOKKOS_HOST_PARALLEL
 endif
 export KOKKOS_DEPS := $(KOKKOS_LIB)
 
-# Intel oneAPI
+SYCL_UNSUPPORTED_CXXFLAGS := --param vect-max-version-for-alias-checks=50 -Wno-non-template-friend -Werror=format-contains-nul -Werror=return-local-addr -Werror=unused-but-set-variable
+SYCL_VERSION  := 2022.1.0
+
+ifdef USE_SYCL_PATATRACK
+ONEAPI_BASE := /data2/user/wredjeb/sycl_workspace
+SYCL_BASE     := $(ONEAPI_BASE)/build
+USER_SYCLFLAGS := -fsycl-targets=nvptx64-nvidia-cuda -std=c++17
+export SYCL_CXX      := $(SYCL_BASE)/bin/clang++
+export SYCL_CXXFLAGS := -fsycl $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
+
+else
 ONEAPI_BASE := /cvmfs/projects.cern.ch/intelsw/oneAPI/linux/x86_64/2022
+ONEAPI_ENV    := $(ONEAPI_BASE)/setvars.sh
+SYCL_BASE     := $(ONEAPI_BASE)/compiler/$(SYCL_VERSION)/linux
+DPCT_BASE     := $(ONEAPI_BASE)/dpcpp-ct/$(SYCL_VERSION)
+DPCT_CXXFLAGS := -Wsycl-strict -isystem $(DPCT_BASE)/include
+USER_SYCLFLAGS := -fsycl-targets=spir64_x86_64,spir64_gen -Xsycl-target-backend=spir64_gen "-device xe_hp_sdv"
+export SYCL_CXX      := $(SYCL_BASE)/bin/dpcpp
+export SYCL_CXXFLAGS := -fsycl $(DPCT_CXXFLAGS) $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
+endif
+
+# Intel oneAPI
+# ONEAPI_BASE := /cvmfs/projects.cern.ch/intelsw/oneAPI/linux/x86_64/2022
 # /cvmfs/projects.cern.ch/intelsw/oneAPI/linux/x86_64/2022
 # /opt/intel/oneapi
-ifneq ($(wildcard $(ONEAPI_BASE)),)
-# OneAPI platform found
-SYCL_VERSION  := 2022.1.0
-ONEAPI_ENV    := $(ONEAPI_BASE)/setvars.sh
-DPCT_BASE     := $(ONEAPI_BASE)/dpcpp-ct/$(SYCL_VERSION)
-SYCL_BASE     := $(ONEAPI_BASE)/compiler/$(SYCL_VERSION)/linux
-DPCT_CXXFLAGS := -Wsycl-strict -isystem $(DPCT_BASE)/include
-endif
-SYCL_UNSUPPORTED_CXXFLAGS := --param vect-max-version-for-alias-checks=50 -Wno-non-template-friend -Werror=format-contains-nul -Werror=return-local-addr -Werror=unused-but-set-variable
+# ifneq ($(wildcard $(ONEAPI_BASE)),)
+# # OneAPI platform found
+# SYCL_VERSION  := 2022.1.0
+# ONEAPI_ENV    := $(ONEAPI_BASE)/setvars.sh
+# DPCT_BASE     := $(ONEAPI_BASE)/dpcpp-ct/$(SYCL_VERSION)
+# SYCL_BASE     := $(ONEAPI_BASE)/compiler/$(SYCL_VERSION)/linux
+# DPCT_CXXFLAGS := -Wsycl-strict -isystem $(DPCT_BASE)/include
+# endif
+# SYCL_UNSUPPORTED_CXXFLAGS := --param vect-max-version-for-alias-checks=50 -Wno-non-template-friend -Werror=format-contains-nul -Werror=return-local-addr -Werror=unused-but-set-variable
 
 # to use a different toolchain
 #   - unset ONEAPI_ENV
@@ -282,10 +302,10 @@ else
 SYCL_BASE :=
 endif
 endif
-USER_SYCLFLAGS := -fsycl-targets=spir64_x86_64,spir64_gen -Xsycl-target-backend=spir64_gen "-device xe_hp_sdv"
+# USER_SYCLFLAGS := -fsycl-targets=spir64_x86_64,spir64_gen -Xsycl-target-backend=spir64_gen "-device xe_hp_sdv"
 ifdef SYCL_BASE
-export SYCL_CXX      := $(SYCL_BASE)/bin/dpcpp
-export SYCL_CXXFLAGS := -fsycl $(DPCT_CXXFLAGS) $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
+# export SYCL_CXX      := $(SYCL_BASE)/bin/dpcpp
+# export SYCL_CXXFLAGS := -fsycl $(DPCT_CXXFLAGS) $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
 ifdef CUDA_BASE
 export SYCL_CUDA_PLUGIN := $(wildcard $(SYCL_LIBDIR)/libpi_cuda.so)
 export SYCL_CUDA_FLAGS  := --cuda-path=$(CUDA_BASE) -Wno-unknown-cuda-version
@@ -496,23 +516,21 @@ endef
 $(foreach target,$(TARGETS_ALL),$(eval $(call CLEAN_template,$(target))))
 
 # Data rules
-$(DATA_DEPS): $(DATA_TAR_GZ) $(DATA_INPUT_TAR_GZ) $(DATA_REF_TAR_GZ) | $(DATA_BASE)/md5.txt $(DATA_BASE)/input/md5_input.txt $(DATA_BASE)/output/reference/md5_reference.txt
+$(DATA_DEPS): $(DATA_TAR_GZ) $(DATA_CLUE_TAR_GZ) | $(DATA_BASE)/md5.txt $(DATA_BASE)/md5_clue.txt
 	cd $(DATA_BASE) && tar zxf $(DATA_TAR_GZ)
 	cd $(DATA_BASE) && md5sum *.bin | diff -u md5.txt -
-	cd $(DATA_BASE)/input && tar zxf $(DATA_INPUT_TAR_GZ)
-	cd $(DATA_BASE)/input && md5sum *.csv | diff -u md5_input.txt -
-	cd $(DATA_BASE)/output/reference && tar zxf $(DATA_REF_TAR_GZ)
-	cd $(DATA_BASE)/output/reference && md5sum *.csv | diff -u md5_reference.txt -
+	cd $(DATA_BASE) && tar zxf $(DATA_CLUE_TAR_GZ)
+	cd $(DATA_BASE) && md5sum *.csv | diff -u md5_clue.txt -
+	cd $(DATA_BASE) && mkdir input && mkdir output && cd $(DATA_BASE)/output && mkdir reference 
+	cd $(DATA_BASE) && mv ref* $(DATA_BASE)/output/reference 
+	cd $(DATA_BASE) && mv *.csv $(DATA_BASE)/input 
 	touch $(DATA_DEPS)
 
 $(DATA_TAR_GZ): | $(DATA_BASE)/url.txt
 	curl -L -s -S $(shell cat $(DATA_BASE)/url.txt) -o $@
 
-$(DATA_INPUT_TAR_GZ): | $(DATA_BASE)/input/url_input.txt
-	curl -L -s -S $(shell cat $(DATA_BASE)/input/url_input.txt) -o $@
-
-$(DATA_REF_TAR_GZ): | $(DATA_BASE)/output/reference/url_reference.txt
-	curl -L -s -S $(shell cat $(DATA_BASE)/output/reference/url_reference.txt) -o $@
+$(DATA_CLUE_TAR_GZ): | $(DATA_BASE)/url_clue.txt
+	curl -L -s -S $(shell cat $(DATA_BASE)/url_clue.txt) -o $@
 
 # External rules
 $(EXTERNAL_BASE):
