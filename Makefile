@@ -99,7 +99,6 @@ endif
 # Input data definitions
 DATA_BASE := $(BASE_DIR)/data
 export DATA_DEPS := $(DATA_BASE)/data_ok
-DATA_TAR_GZ := $(DATA_BASE)/data.tar.gz
 DATA_CLUE_TAR_GZ := $(DATA_BASE)/clue_data.tar.gz
 
 # External definitions
@@ -273,24 +272,6 @@ USER_SYCLFLAGS := -fsycl-targets=spir64_x86_64,spir64_gen -Xsycl-target-backend=
 export SYCL_CXX      := $(SYCL_BASE)/bin/dpcpp
 export SYCL_CXXFLAGS := -fsycl $(DPCT_CXXFLAGS) $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
 endif
-
-# Intel oneAPI
-# ONEAPI_BASE := /cvmfs/projects.cern.ch/intelsw/oneAPI/linux/x86_64/2022
-# /cvmfs/projects.cern.ch/intelsw/oneAPI/linux/x86_64/2022
-# /opt/intel/oneapi
-# ifneq ($(wildcard $(ONEAPI_BASE)),)
-# # OneAPI platform found
-# SYCL_VERSION  := 2022.1.0
-# ONEAPI_ENV    := $(ONEAPI_BASE)/setvars.sh
-# DPCT_BASE     := $(ONEAPI_BASE)/dpcpp-ct/$(SYCL_VERSION)
-# SYCL_BASE     := $(ONEAPI_BASE)/compiler/$(SYCL_VERSION)/linux
-# DPCT_CXXFLAGS := -Wsycl-strict -isystem $(DPCT_BASE)/include
-# endif
-# SYCL_UNSUPPORTED_CXXFLAGS := --param vect-max-version-for-alias-checks=50 -Wno-non-template-friend -Werror=format-contains-nul -Werror=return-local-addr -Werror=unused-but-set-variable
-
-# to use a different toolchain
-#   - unset ONEAPI_ENV
-#   - set SYCL_BASE appropriately
 
 # check if libraries are under lib or lib64
 ifdef SYCL_BASE
@@ -501,13 +482,10 @@ distclean: | clean
 	rm -fR $(EXTERNAL_BASE) .original_env
 
 dataclean:
-	rm -fR $(DATA_BASE)/*.tar.gz 
-	rm -fR $(DATA_BASE)/*.bin 
+	rm -fR $(DATA_BASE)/input
+	rm -fR $(DATA_BASE)/output
+	rm -fR $(DATA_BASE)/*.tar.gz
 	rm -fR $(DATA_BASE)/data_ok 
-	rm -fR $(DATA_BASE)/input/*.csv $(DATA_BASE)/output/reference/*.csv
-
-outputclean: 
-	rm -fR $(DATA_BASE)/output/*.csv
 
 define CLEAN_template
 clean_$(1):
@@ -516,18 +494,13 @@ endef
 $(foreach target,$(TARGETS_ALL),$(eval $(call CLEAN_template,$(target))))
 
 # Data rules
-$(DATA_DEPS): $(DATA_TAR_GZ) $(DATA_CLUE_TAR_GZ) | $(DATA_BASE)/md5.txt $(DATA_BASE)/md5_clue.txt
-	cd $(DATA_BASE) && tar zxf $(DATA_TAR_GZ)
-	cd $(DATA_BASE) && md5sum *.bin | diff -u md5.txt -
+$(DATA_DEPS): $(DATA_CLUE_TAR_GZ) | $(DATA_BASE)/md5_clue.txt
 	cd $(DATA_BASE) && tar zxf $(DATA_CLUE_TAR_GZ)
 	cd $(DATA_BASE) && md5sum *.csv | diff -u md5_clue.txt -
 	cd $(DATA_BASE) && mkdir input && mkdir output && cd $(DATA_BASE)/output && mkdir reference 
 	cd $(DATA_BASE) && mv ref* $(DATA_BASE)/output/reference 
 	cd $(DATA_BASE) && mv *.csv $(DATA_BASE)/input 
 	touch $(DATA_DEPS)
-
-$(DATA_TAR_GZ): | $(DATA_BASE)/url.txt
-	curl -L -s -S $(shell cat $(DATA_BASE)/url.txt) -o $@
 
 $(DATA_CLUE_TAR_GZ): | $(DATA_BASE)/url_clue.txt
 	curl -L -s -S $(shell cat $(DATA_BASE)/url_clue.txt) -o $@
