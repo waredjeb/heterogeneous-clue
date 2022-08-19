@@ -131,13 +131,6 @@ TBB_CXXFLAGS += -DTBB_ALLOCATOR_TRAITS_BROKEN
 TBB_CMAKEFLAGS += -DCMAKE_CXX_FLAGS=-DTBB_ALLOCATOR_TRAITS_BROKEN
 endif
 
-EIGEN_BASE := $(EXTERNAL_BASE)/eigen
-export EIGEN_DEPS := $(EIGEN_BASE)
-export EIGEN_CXXFLAGS := -isystem $(EIGEN_BASE) -DEIGEN_DONT_PARALLELIZE
-export EIGEN_LDFLAGS :=
-export EIGEN_NVCC_CXXFLAGS := --diag-suppress 20014
-export EIGEN_SYCL_CXXFLAGS := -DEIGEN_USE_SYCL -fsycl-enable-function-pointers
-
 BOOST_BASE := /usr
 # Minimum required version of Boost, e.g. 1.78.0
 BOOST_MIN_VERSION := 107800
@@ -370,7 +363,7 @@ test_auto: $(TEST_AUTO_TARGETS)
 .PHONY: test_auto $(TEST_AUTO_TARGETS)
 .PHONY: format $(patsubst %,format_%,$(TARGETS_ALL))
 .PHONY: environment print_targets clean distclean dataclean
-.PHONY: external_tbb external_cub external_eigen external_kokkos external_kokkos_clean
+.PHONY: external_tbb external_cub external_kokkos external_kokkos_clean
 
 environment: env.sh
 env.sh: Makefile
@@ -547,16 +540,6 @@ $(TBB_LIB):
 	$(eval undefine TBB_TMP_SRC)
 	$(eval undefine TBB_TMP_BUILD)
 
-# Eigen
-external_eigen: $(EIGEN_BASE)
-
-$(EIGEN_BASE):
-	# from Eigen master branch as of 2021.08.18
-	#git clone -b cms/master/82dd3710dac619448f50331c1d6a35da673f764a https://github.com/cms-externals/eigen-git-mirror.git $@
-	git clone https://gitlab.com/libeigen/eigen.git $@
-	# include all Patatrack updates
-	#cd $@ && git reset --hard 6294f3471cc18068079ec6af8ceccebe34b40021
-	cd $@ && git reset --hard 34780d8bd13d0af0cf17a22789ef286e8512594d
 # Boost
 .PHONY: external_boost
 external_boost: $(BOOST_BASE)
