@@ -26,10 +26,8 @@ endif
 USER_CXXFLAGS :=
 HOST_CXXFLAGS := -O2 -fPIC -fdiagnostics-show-option -felide-constructors -fmessage-length=0 -fno-math-errno -ftree-vectorize -fvisibility-inlines-hidden --param vect-max-version-for-alias-checks=50 -msse3 -pipe -pthread -Werror=address -Wall -Werror=array-bounds -Wno-attributes -Werror=conversion-null -Werror=delete-non-virtual-dtor -Wno-deprecated -Werror=format-contains-nul -Werror=format -Wno-long-long -Werror=main -Werror=missing-braces -Werror=narrowing -Wno-non-template-friend -Wnon-virtual-dtor -Werror=overflow -Werror=overlength-strings -Wparentheses -Werror=pointer-arith -Wno-psabi -Werror=reorder -Werror=return-local-addr -Wreturn-type -Werror=return-type -Werror=sign-compare -Werror=strict-aliasing -Wstrict-overflow -Werror=switch -Werror=type-limits -Wunused -Werror=unused-but-set-variable -Wno-unused-local-typedefs -Werror=unused-value -Wno-error=unused-variable -Wno-vla -Werror=write-strings -Wfatal-errors
 export CXXFLAGS := -std=c++17 $(HOST_CXXFLAGS) $(USER_CXXFLAGS) -g
-export NVCXX_CXXFLAGS := -std=c++20 -O0 -cuda -gpu=managed -stdpar -fpic -gopt $(USER_CXXFLAGS)
 export LDFLAGS := -O2 -fPIC -pthread -Wl,-E -lstdc++fs -ldl
 export LDFLAGS_NVCC := -ccbin $(CXX) --linker-options '-E' --linker-options '-lstdc++fs'
-export LDFLAGS_NVCXX := -cuda -Wl,-E -ldl
 export SO_LDFLAGS := -Wl,-z,defs
 export SO_LDFLAGS_NVCC := --linker-options '-z,defs'
 
@@ -78,21 +76,6 @@ export CUDA_CUFLAGS
 export CUDA_DLINKFLAGS
 endif
 
-#Nvidia HPC sdk
-NVHPC_BASE := /opt/nvidia/hpc_sdk/Linux_x86_64/22.7
-ifeq ($(wildcard $(NVHPC_BASE)),)
-# HPC sdk not found
-NVHPC_BASE :=
-else
-USER_NVHPCFLAGS :=
-export NVHPC_BASE
-export NVHPC_DEPS :=
-export NVHPC_NVCXXFLAGS := 
-export NVHPC_TEST_NVCXXFLAGS := -DGPU_DEBUG
-export NVHPC_LDFLAGS := 
-export NVCXX := $(NVHPC_BASE)/compilers/bin/nvc++
-endif
-
 # ROCm
 ROCM_BASE := /opt/rocm-5.0.2
 ifeq ($(wildcard $(ROCM_BASE)),)
@@ -116,7 +99,7 @@ endif
 # Input data definitions
 DATA_BASE := $(BASE_DIR)/data
 export DATA_DEPS := $(DATA_BASE)/data_ok
-DATA_TAR_GZ := $(DATA_BASE)/data.tar.gz
+DATA_CLUE_TAR_GZ := $(DATA_BASE)/clue_data.tar.gz
 
 # External definitions
 EXTERNAL_BASE := $(BASE_DIR)/external
@@ -138,19 +121,13 @@ export TBB_DEPS := $(TBB_LIB)
 export TBB_CXXFLAGS := -isystem $(TBB_BASE)/include -DTBB_SUPPRESS_DEPRECATED_MESSAGES -DTBB_PREVIEW_NUMA_SUPPORT -DTBB_PREVIEW_TASK_GROUP_EXTENSIONS
 export TBB_LDFLAGS := -L$(TBB_LIBDIR) -ltbb
 export TBB_NVCC_CXXFLAGS :=
+export TBB_SYCL_CXXFLAGS :=
 # The libstdc++ library used by the devtools on RHEL 7 / CentOS 7 requires a workaround because
 # some STL containers do not support the allocator traits, even when using more recent compilers
 ifneq ($(shell [ -f /etc/redhat-release ] && grep -q 'release 7' /etc/redhat-release && which $(CXX) | grep devtoolset),)
 TBB_CXXFLAGS += -DTBB_ALLOCATOR_TRAITS_BROKEN
 TBB_CMAKEFLAGS += -DCMAKE_CXX_FLAGS=-DTBB_ALLOCATOR_TRAITS_BROKEN
 endif
-
-EIGEN_BASE := $(EXTERNAL_BASE)/eigen
-export EIGEN_DEPS := $(EIGEN_BASE)
-export EIGEN_CXXFLAGS := -isystem $(EIGEN_BASE) -DEIGEN_DONT_PARALLELIZE
-export EIGEN_LDFLAGS :=
-export EIGEN_NVCXX_CXXFLAGS := -DEIGEN_USE_GPU -DEIGEN_UNROLLING_LIMIT=64
-export EIGEN_NVCC_CXXFLAGS := --diag-suppress 20014
 
 BOOST_BASE := /usr
 # Minimum required version of Boost, e.g. 1.78.0
@@ -168,11 +145,13 @@ export BOOST_DEPS := $(BOOST_BASE)
 export BOOST_CXXFLAGS := -isystem $(BOOST_BASE)/include
 export BOOST_LDFLAGS := -L$(BOOST_BASE)/lib
 export BOOST_NVCC_CXXFLAGS :=
+export BOOST_SYCL_CXXFLAGS :=
 
 BACKTRACE_BASE := $(EXTERNAL_BASE)/libbacktrace
 export BACKTRACE_DEPS := $(BACKTRACE_BASE)
 export BACKTRACE_CXXFLAGS := -isystem $(BACKTRACE_BASE)/include
 export BACKTRACE_LDFLAGS := -L$(BACKTRACE_BASE)/lib -lbacktrace
+export BACKTRACE_SYCL_CXXFLAGS :=
 
 ALPAKA_BASE := $(EXTERNAL_BASE)/alpaka
 export ALPAKA_DEPS := $(ALPAKA_BASE)
@@ -273,20 +252,26 @@ ifdef KOKKOS_HOST_PARALLEL
 endif
 export KOKKOS_DEPS := $(KOKKOS_LIB)
 
-# Intel oneAPI
-ONEAPI_BASE := /opt/intel/oneapi
-ifneq ($(wildcard $(ONEAPI_BASE)),)
-# OneAPI platform found
-ONEAPI_ENV    := $(ONEAPI_BASE)/setvars.sh
-DPCT_BASE     := $(ONEAPI_BASE)/dpcpp-ct/latest
-SYCL_BASE     := $(ONEAPI_BASE)/compiler/latest/linux
-DPCT_CXXFLAGS := -isystem $(DPCT_BASE)/include
-endif
 SYCL_UNSUPPORTED_CXXFLAGS := --param vect-max-version-for-alias-checks=50 -Wno-non-template-friend -Werror=format-contains-nul -Werror=return-local-addr -Werror=unused-but-set-variable
+SYCL_VERSION  := 2022.1.0
 
-# to use a different toolchain
-#   - unset ONEAPI_ENV
-#   - set SYCL_BASE appropriately
+ifdef USE_SYCL_PATATRACK
+ONEAPI_BASE := /data2/user/wredjeb/sycl_workspace
+SYCL_BASE     := $(ONEAPI_BASE)/build
+USER_SYCLFLAGS := -fsycl-targets=nvptx64-nvidia-cuda -std=c++17
+export SYCL_CXX      := $(SYCL_BASE)/bin/clang++
+export SYCL_CXXFLAGS := -fsycl $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
+
+else
+ONEAPI_BASE := /cvmfs/projects.cern.ch/intelsw/oneAPI/linux/x86_64/2022
+ONEAPI_ENV    := $(ONEAPI_BASE)/setvars.sh
+SYCL_BASE     := $(ONEAPI_BASE)/compiler/$(SYCL_VERSION)/linux
+DPCT_BASE     := $(ONEAPI_BASE)/dpcpp-ct/$(SYCL_VERSION)
+DPCT_CXXFLAGS := -Wsycl-strict -isystem $(DPCT_BASE)/include
+USER_SYCLFLAGS := -fsycl-targets=spir64_x86_64,spir64_gen -Xsycl-target-backend=spir64_gen "-device xe_hp_sdv"
+export SYCL_CXX      := $(SYCL_BASE)/bin/dpcpp
+export SYCL_CXXFLAGS := -fsycl $(DPCT_CXXFLAGS) $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
+endif
 
 # check if libraries are under lib or lib64
 ifdef SYCL_BASE
@@ -298,10 +283,10 @@ else
 SYCL_BASE :=
 endif
 endif
-USER_SYCLFLAGS :=
+# USER_SYCLFLAGS := -fsycl-targets=spir64_x86_64,spir64_gen -Xsycl-target-backend=spir64_gen "-device xe_hp_sdv"
 ifdef SYCL_BASE
-export SYCL_CXX      := $(SYCL_BASE)/bin/dpcpp
-export SYCL_CXXFLAGS := -fsycl $(DPCT_CXXFLAGS) $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
+# export SYCL_CXX      := $(SYCL_BASE)/bin/dpcpp
+# export SYCL_CXXFLAGS := -fsycl $(DPCT_CXXFLAGS) $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) $(USER_SYCLFLAGS)
 ifdef CUDA_BASE
 export SYCL_CUDA_PLUGIN := $(wildcard $(SYCL_LIBDIR)/libpi_cuda.so)
 export SYCL_CUDA_FLAGS  := --cuda-path=$(CUDA_BASE) -Wno-unknown-cuda-version
@@ -322,16 +307,15 @@ $(foreach target,$(TARGETS_ALL),$(eval $(call TARGET_ALL_DEPS_template,$(target)
 TARGETS_CUDA :=
 TARGETS_ROCM :=
 TARGETS_SYCL :=
-TARGETS_NVHPC :=
 define SPLIT_TARGETS_template
 ifneq ($$(filter $(1),$$($(2)_EXTERNAL_DEPENDS)),)
   TARGETS_$(1) += $(2)
 endif
 endef
-TOOLCHAINS := CUDA ROCM SYCL NVHPC
+TOOLCHAINS := CUDA ROCM SYCL
 $(foreach toolchain,$(TOOLCHAINS),$(foreach target,$(TARGETS_ALL),$(eval $(call SPLIT_TARGETS_template,$(toolchain),$(target)))))
 
-TARGETS_GCC := $(filter-out $(TARGETS_CUDA) $(TARGETS_ROCM) $(TARGETS_SYCL) $(TARGETS_NVHPC),$(TARGETS_ALL))
+TARGETS_GCC := $(filter-out $(TARGETS_CUDA) $(TARGETS_ROCM) $(TARGETS_SYCL),$(TARGETS_ALL))
 
 # Re-construct targets based on available compilers/toolchains
 TARGETS := $(TARGETS_GCC)
@@ -343,9 +327,6 @@ TARGETS += $(TARGETS_ROCM)
 endif
 ifdef SYCL_BASE
 TARGETS += $(TARGETS_SYCL)
-endif
-ifdef NVHPC_BASE
-TARGETS += $(TARGETS_NVHPC)
 endif
 # remove possible duplicates
 TARGETS := $(sort $(TARGETS))
@@ -383,7 +364,7 @@ test_auto: $(TEST_AUTO_TARGETS)
 .PHONY: test_auto $(TEST_AUTO_TARGETS)
 .PHONY: format $(patsubst %,format_%,$(TARGETS_ALL))
 .PHONY: environment print_targets clean distclean dataclean
-.PHONY: external_tbb external_cub external_eigen external_kokkos external_kokkos_clean
+.PHONY: external_tbb external_cub external_kokkos external_kokkos_clean
 
 environment: env.sh
 env.sh: Makefile
@@ -501,7 +482,10 @@ distclean: | clean
 	rm -fR $(EXTERNAL_BASE) .original_env
 
 dataclean:
-	rm -fR $(DATA_BASE)/*.tar.gz $(DATA_BASE)/*.csv $(DATA_BASE)/data_ok
+	rm -fR $(DATA_BASE)/input
+	rm -fR $(DATA_BASE)/output
+	rm -fR $(DATA_BASE)/*.tar.gz
+	rm -fR $(DATA_BASE)/data_ok 
 
 define CLEAN_template
 clean_$(1):
@@ -510,12 +494,15 @@ endef
 $(foreach target,$(TARGETS_ALL),$(eval $(call CLEAN_template,$(target))))
 
 # Data rules
-$(DATA_DEPS): $(DATA_TAR_GZ) | $(DATA_BASE)/md5.txt
-	cd $(DATA_BASE) && tar zxf $(DATA_TAR_GZ)
+$(DATA_DEPS): $(DATA_CLUE_TAR_GZ) | $(DATA_BASE)/md5.txt
+	cd $(DATA_BASE) && tar zxf $(DATA_CLUE_TAR_GZ)
 	cd $(DATA_BASE) && md5sum *.csv | diff -u md5.txt -
+	cd $(DATA_BASE) && mkdir input && mkdir output && cd $(DATA_BASE)/output && mkdir reference 
+	cd $(DATA_BASE) && mv ref* $(DATA_BASE)/output/reference 
+	cd $(DATA_BASE) && mv *.csv $(DATA_BASE)/input 
 	touch $(DATA_DEPS)
 
-$(DATA_TAR_GZ): | $(DATA_BASE)/url.txt
+$(DATA_CLUE_TAR_GZ): | $(DATA_BASE)/url.txt
 	curl -L -s -S $(shell cat $(DATA_BASE)/url.txt) -o $@
 
 # External rules
@@ -543,15 +530,6 @@ $(TBB_LIB):
 	$(eval undefine TBB_TMP)
 	$(eval undefine TBB_TMP_SRC)
 	$(eval undefine TBB_TMP_BUILD)
-
-# Eigen
-external_eigen: $(EIGEN_BASE)
-
-$(EIGEN_BASE):
-	# from Eigen master branch as of 2021.08.18
-	git clone -b cms/master/82dd3710dac619448f50331c1d6a35da673f764a https://github.com/cms-externals/eigen-git-mirror.git $@
-	# include all Patatrack updates
-	cd $@ && git reset --hard 6294f3471cc18068079ec6af8ceccebe34b40021
 
 # Boost
 .PHONY: external_boost
@@ -603,7 +581,7 @@ external_alpaka: $(ALPAKA_BASE)
 
 $(ALPAKA_BASE):
 	git clone git@github.com:alpaka-group/alpaka.git -b develop $@
-	cd $@ && git checkout 879b95ffce2da499c9cc6e12d4cfd5545effa701
+	cd $@ && git checkout 540397c4297719fcd76a704ee49b2318174782a4
 
 # Kokkos
 external_kokkos: $(KOKKOS_LIB)
