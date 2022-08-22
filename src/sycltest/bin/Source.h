@@ -37,7 +37,7 @@ namespace edm {
 
     std::atomic<int> numEvents_ = 0;
     EDPutTokenT<PointsCloud> const cloudToken_;
-    PointsCloud cloud_;
+    std::vector<PointsCloud> cloud_;
   };
 }  // namespace edm
 

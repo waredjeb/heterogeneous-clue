@@ -5,29 +5,37 @@
 
 #include "Source.h"
 
+namespace {
+  PointsCloud readFile(std::ifstream &is) {
+    PointsCloud data;
+    for (int l = 0; l < NLAYERS; l++) {
+      std::string value = "";
+      // Iterate through each line and split the content using delimeter
+      while (getline(is, value, ',')) {
+        data.x.push_back(std::stof(value));
+        getline(is, value, ',');
+        data.y.push_back(std::stof(value));
+        getline(is, value, ',');
+        data.layer.push_back(std::stoi(value) + l);
+        getline(is, value);
+        data.weight.push_back(std::stof(value));
+      }
+    }
+    return data;
+  }
+}  // namespace
+
 namespace edm {
   Source::Source(int maxEvents, int runForMinutes, ProductRegistry &reg, std::filesystem::path const &inputFile)
       : maxEvents_(maxEvents), runForMinutes_(runForMinutes), cloudToken_(reg.produces<PointsCloud>()) {
-    for (int l = 0; l < NLAYERS; l++) {
-      // open csv file
-      std::ifstream iFile(inputFile);
-      std::string value = "";
-      // Iterate through each line and split the content using delimeter
-      while (getline(iFile, value, ',')) {
-        cloud_.x.push_back(std::stof(value));
-        getline(iFile, value, ',');
-        cloud_.y.push_back(std::stof(value));
-        getline(iFile, value, ',');
-        cloud_.layer.push_back(std::stoi(value) + l);
-        getline(iFile, value);
-        cloud_.weight.push_back(std::stof(value));
-      }
-      iFile.close();
-    }
-    cloud_.n = cloud_.x.size();
+    std::ifstream iFile(inputFile);
 
     if (runForMinutes_ < 0 and maxEvents_ < 0) {
-      maxEvents_ = cloud_.n / NLAYERS;
+      maxEvents_ = 10;
+    }
+
+    for (int i = 0; i != maxEvents_; i++) {
+      cloud_.emplace_back(readFile(iFile));
     }
   }
 
@@ -51,15 +59,15 @@ namespace edm {
         return nullptr;
       }
     } else {
-      if (numEvents_ - numEventsTimeLastCheck_ > static_cast<int>(cloud_.n)) {
+      if (numEvents_ - numEventsTimeLastCheck_ > static_cast<int>(cloud_.size())) {
         std::scoped_lock lock(timeMutex_);
         // if some other thread beat us, no need to do anything
-        if (numEvents_ - numEventsTimeLastCheck_ > static_cast<int>(cloud_.n)) {
+        if (numEvents_ - numEventsTimeLastCheck_ > static_cast<int>(cloud_.size())) {
           auto processingTime = std::chrono::steady_clock::now() - startTime_;
           if (std::chrono::duration_cast<std::chrono::minutes>(processingTime).count() >= runForMinutes_) {
             shouldStop_ = true;
           }
-          numEventsTimeLastCheck_ = (numEvents_ / cloud_.n) * cloud_.n;
+          numEventsTimeLastCheck_ = (numEvents_ / cloud_.size()) * cloud_.size();
         }
         if (shouldStop_) {
           --numEvents_;
@@ -68,8 +76,9 @@ namespace edm {
       }
     }
     auto ev = std::make_unique<Event>(streamId, iev, reg);
+    const int index = old % cloud_.size();
 
-    ev->emplace(cloudToken_, cloud_);
+    ev->emplace(cloudToken_, cloud_[index]);
 
     return ev;
   }
