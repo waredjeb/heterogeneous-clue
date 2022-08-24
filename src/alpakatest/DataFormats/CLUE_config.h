@@ -1,5 +1,5 @@
-#ifndef CLUE_Config_h
-#define CLUE_Config_h
+#ifndef CLUE_config_h
+#define CLUE_config_h
 
 #include <vector>
 #include <filesystem>
@@ -9,7 +9,7 @@ struct Parameters {
   float dc = 20;
   float rhoc = 25;
   float outlierDeltaFactor = 2;
-  bool verbose = false;
+  bool produceOutput = false;
 };
 
 template <typename T>

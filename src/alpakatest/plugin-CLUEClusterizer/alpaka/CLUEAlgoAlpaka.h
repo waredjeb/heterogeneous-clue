@@ -1,7 +1,7 @@
 #ifndef CLUEAlgo_Alpaka_h
 #define CLUEAlgo_Alpaka_h
 
-#include <optional>
+// #include <optional>
 
 #include "AlpakaCore/alpakaConfig.h"
 #include "AlpakaCore/alpakaMemory.h"
@@ -14,8 +14,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   public:
     // constructor
     CLUEAlgoAlpaka() = delete;
-    explicit CLUEAlgoAlpaka(
-        float const &dc, float const &rhoc, float const &outlierDeltaFactor, Queue stream, uint32_t const &numberOfPoints)
+    explicit CLUEAlgoAlpaka(float const &dc,
+                            float const &rhoc,
+                            float const &outlierDeltaFactor,
+                            Queue stream,
+                            uint32_t const &numberOfPoints)
         : d_points{stream, numberOfPoints},
           queue_{std::move(stream)},
           dc_{dc},
@@ -50,21 +53,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     // private methods
     void init_device();
 
-    // void free_device();
-
     void setup(PointsCloud const &host_pc);
-
-    /*   void copy_tohost() {
-    // result variables
-    queue_.memcpy(points_.clusterIndex.data(), d_points.clusterIndex, sizeof(int) * points_.n).wait();
-    if (verbose_)  // other variables, copy only when verbose_==True
-    {
-      queue_.memcpy(points_.rho.data(), d_points.rho, sizeof(float) * points_.n);
-      queue_.memcpy(points_.delta.data(), d_points.delta, sizeof(float) * points_.n);
-      queue_.memcpy(points_.nearestHigher.data(), d_points.nearestHigher, sizeof(int) * points_.n);
-      queue_.memcpy(points_.isSeed.data(), d_points.isSeed, sizeof(int) * points_.n).wait();
-    }
-  } */
   };
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
 

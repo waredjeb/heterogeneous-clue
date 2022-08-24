@@ -23,12 +23,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     followers_ = alpaka::getPtrNative(d_followers);
   }
 
-  // void CLUEAlgoAlpaka::free_device() {
-  //   sycl::free(d_hist, *queue_);
-  //   sycl::free(d_seeds, *queue_);
-  //   sycl::free(d_followers, *queue_);
-  // }
-
   void CLUEAlgoAlpaka::setup(PointsCloud const &host_pc) {
     // copy input variables
     alpaka::memcpy(queue_, d_points.x, cms::alpakatools::make_host_view(host_pc.x.data(), host_pc.n));
@@ -80,7 +74,5 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     //                     WorkDiv1D, KernelAssignClusters(), seeds_, followers_, d_points.view_d, d_points.n));
 
     alpaka::wait(queue_);
-
-
   }
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE

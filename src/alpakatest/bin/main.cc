@@ -1,21 +1,23 @@
-#include <algorithm>
+// #include <algorithm>
 #include <chrono>
 #include <cstdlib>
-#include <exception>
+// #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
-#include <ios>
-#include <iostream>
-#include <unordered_map>
+// #include <ios>
+// #include <iostream>
+// #include <unordered_map>
 #include <stdexcept>
 #include <string>
-#include <utility>
+// #include <utility>
 #include <vector>
 
 #include <tbb/global_control.h>
 #include <tbb/info.h>
 #include <tbb/task_arena.h>
 
+#include "DataFormats/CLUE_config.h"
 #include "AlpakaCore/alpakaConfig.h"
 #include "AlpakaCore/backend.h"
 #include "AlpakaCore/initialise.h"
@@ -131,7 +133,6 @@ int main(int argc, char** argv) {
   int numberOfStreams = 0;
   int maxEvents = -1;
   int runForMinutes = -1;
-  std::filesystem::path datadir;
   std::filesystem::path inputFile;
   std::filesystem::path configFile;
   bool transfer = false;
@@ -173,14 +174,10 @@ int main(int argc, char** argv) {
       getArgument(args, i, maxEvents);
     } else if (*i == "--runForMinutes") {
       getArgument(args, i, runForMinutes);
-    } else if (*i == "--data") {
-      std::cout << "Data directory passed!\n" << std::endl;
-      getArgument(args, i, datadir);
-      std::cout << "Datadir: " << datadir << std::endl;
     } else if (*i == "--inputFile") {
       getArgument(args, i, inputFile);
     } else if (*i == "--configFile") {
-      getArgument(args, i, inputFile);
+      getArgument(args, i, configFile);
       transfer = true;
     } else if (*i == "--transfer") {
       transfer = true;
@@ -205,26 +202,20 @@ int main(int argc, char** argv) {
   if (numberOfStreams == 0) {
     numberOfStreams = numberOfThreads;
   }
-  if (datadir.empty()) {
-    datadir = std::filesystem::path(args[0]).parent_path() / "data";
-  }
-  if (not std::filesystem::exists(datadir)) {
-    std::cout << "Data directory '" << datadir << "' does not exist" << std::endl;
-    return EXIT_FAILURE;
-  }
   if (inputFile.empty()) {
     inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_1k.csv";
   }
   if (not std::filesystem::exists(inputFile)) {
     std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
+    return EXIT_FAILURE;
   }
   if (configFile.empty()) {
-    inputFile = std::filesystem::path(args[0]).parent_path() / "config" / "test_without_output.csv";
+    configFile = std::filesystem::path(args[0]).parent_path() / "config" / "test_without_output.csv";
   }
   if (not std::filesystem::exists(configFile)) {
     std::cout << "Config file '" << configFile << "' does not exist" << std::endl;
+    return EXIT_FAILURE;
   }
-
   // Initialiase the selected backends
 #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
   if (backends.find(Backend::SERIAL) != backends.end()) {
@@ -247,37 +238,53 @@ int main(int argc, char** argv) {
   }
 #endif
 
+  Parameters par;
+  std::ifstream iFile(configFile);
+  std::string value = "";
+  while (getline(iFile, value, ',')) {
+    par.dc = std::stof(value);
+    getline(iFile, value, ',');
+    par.rhoc = std::stof(value);
+    getline(iFile, value, ',');
+    par.outlierDeltaFactor = std::stof(value);
+    getline(iFile, value);
+    par.produceOutput = static_cast<bool>(std::stoi(value));
+  }
+  iFile.close();
+
+  std::cout << "Running CLUE algorithm with the following parameters: \n";
+  std::cout << "dc = " << par.dc << '\n';
+  std::cout << "rhoc = " << par.rhoc << '\n';
+  std::cout << "outlierDeltaFactor = " << par.outlierDeltaFactor << std::endl;
+
+  if (par.produceOutput) {
+    transfer = true;
+    std::cout << "Producing output at the end" << std::endl;
+  }
+
   // Initialize EventProcessor
   std::vector<std::string> esmodules;
   edm::Alternatives alternatives;
   if (not empty) {
     // host-only ESModules
-    esmodules = {"PointsCloudESProducer", "CLUEAlpakaClusterizerESProducer"};
+    esmodules = {"CLUEAlpakaClusterizerESProducer"};
     for (auto const& [backend, weight] : backends) {
       std::string prefix = "alpaka_" + name(backend) + "::";
       // "portable" EDModules
       std::vector<std::string> edmodules;
-      edmodules.emplace_back(prefix + "PointsCloudProducer");
       edmodules.emplace_back(prefix + "CLUEAlpakaClusterizer");
       if (transfer) {
         // add modules for transfer
       }
       if (validation) {
-        esmodules.emplace_back("ValidatorPointsCloudESProducer");
-        edmodules.emplace_back(prefix + "ValidatorPointsCloudToAlpaka");
+        // esmodules.emplace_back("ValidatorPointsCloudESProducer");
+        // edmodules.emplace_back(prefix + "ValidatorPointsCloudToAlpaka");
       }
       alternatives.emplace_back(backend, weight, std::move(edmodules));
     }
   }
-  edm::EventProcessor processor(maxEvents,
-                                runForMinutes,
-                                numberOfStreams,
-                                std::move(alternatives),
-                                std::move(esmodules),
-                                datadir,
-                                inputFile,
-                                configFile,
-                                validation);
+  edm::EventProcessor processor(
+      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), inputFile, configFile);
 
   if (runForMinutes < 0) {
     std::cout << "Processing " << processor.maxEvents() << " events,";

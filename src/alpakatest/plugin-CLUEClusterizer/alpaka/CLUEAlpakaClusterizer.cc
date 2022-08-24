@@ -21,24 +21,23 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   private:
     void produce(edm::Event& iEvent, const edm::EventSetup& iSetup) override;
 
-    edm::EDGetTokenT<cms::alpakatools::Product<Queue, PointsCloud>> tokenPointsCloudAlpaka_;
-    edm::EDPutTokenT<cms::alpakatools::Product<Queue, PointsCloudAlpaka>> tokenClusters_;
+    edm::EDGetTokenT<PointsCloud> pointsCloudToken_;
+    edm::EDPutTokenT<cms::alpakatools::Product<Queue, PointsCloudAlpaka>> clusterToken_;
   };
 
   CLUEAlpakaClusterizer::CLUEAlpakaClusterizer(edm::ProductRegistry& reg)
-      : tokenPointsCloudAlpaka_{reg.consumes<cms::alpakatools::Product<Queue, PointsCloud>>()},
-        tokenClusters_{reg.produces<cms::alpakatools::Product<Queue, PointsCloudAlpaka>>()} {}
+      : pointsCloudToken_{reg.consumes<PointsCloud>()},
+        clusterToken_{reg.produces<cms::alpakatools::Product<Queue, PointsCloudAlpaka>>()} {}
 
   void CLUEAlpakaClusterizer::produce(edm::Event& event, const edm::EventSetup& eventSetup) {
-    auto const& pcProduct = event.get(tokenPointsCloudAlpaka_);
-    cms::alpakatools::ScopedContextProduce<Queue> ctx(pcProduct);
-    PointsCloud const& pc = ctx.get(pcProduct);
+    auto const& pc = event.get(pointsCloudToken_);
+    cms::alpakatools::ScopedContextProduce<Queue> ctx(event.streamID());
     Parameters const& par = eventSetup.get<Parameters>();
     auto stream = ctx.stream();
     CLUEAlgoAlpaka clueAlgo(par.dc, par.rhoc, par.outlierDeltaFactor, stream, pc.n);
-    clueAlgo.makeClusters(pc);
+    // clueAlgo.makeClusters(pc);
 
-    ctx.emplace(event, tokenClusters_, std::move(clueAlgo.d_points));
+    ctx.emplace(event, clusterToken_, std::move(clueAlgo.d_points));
   }
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
 

@@ -1,5 +1,5 @@
-#ifndef bin_EventProcessor_h
-#define bin_EventProcessor_h
+#ifndef EventProcessor_h
+#define EventProcessor_h
 
 #include <filesystem>
 #include <string>
@@ -32,18 +32,8 @@ namespace edm {
                             int numberOfStreams,
                             Alternatives alternatives,
                             std::vector<std::string> const& esproducers,
-                            std::filesystem::path const& datadir,
-                            bool validation);
-
-    explicit EventProcessor(int maxEvents,
-                            int runForMinutes,
-                            int numberOfStreams,
-                            Alternatives alternatives,
-                            std::vector<std::string> const& esproducers,
-                            std::filesystem::path const& datadir,
                             std::filesystem::path const& inputFile,
-                            std::filesystem::path const& configFile,
-                            bool validation);
+                            std::filesystem::path const& configFile);
 
     int maxEvents() const { return source_.maxEvents(); }
     int processedEvents() const { return source_.processedEvents(); }
@@ -63,4 +53,4 @@ namespace edm {
   };
 }  // namespace edm
 
-#endif  // bin_EventProcessor_h
+#endif  // EventProcessor_h

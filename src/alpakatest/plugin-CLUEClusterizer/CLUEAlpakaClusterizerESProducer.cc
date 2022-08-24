@@ -25,15 +25,9 @@ void CLUEAlpakaClusterizerESProducer::produce(edm::EventSetup& eventSetup) {
     getline(iFile, value, ',');
     par.outlierDeltaFactor = std::stof(value);
     getline(iFile, value);
-    par.verbose = static_cast<bool>(std::stoi(value));
+    par.produceOutput = static_cast<bool>(std::stoi(value));
   }
   iFile.close();
-
-  std::cout << "Parameters in ESProducer: \n";
-  std::cout << "dc: " << par.dc << '\n';
-  std::cout << "rhoc: " << par.rhoc << '\n';
-  std::cout << "outlier delta factor: " << par.outlierDeltaFactor << '\n';
-  std::cout << "verbose: " << par.verbose << '\n';
 
   auto parameters = std::make_unique<Parameters>(par);
   eventSetup.put(std::move(parameters));
