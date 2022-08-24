@@ -42,6 +42,7 @@ namespace edm {
                             std::vector<std::string> const& esproducers,
                             std::filesystem::path const& datadir,
                             std::filesystem::path const& inputFile,
+                            std::filesystem::path const& configFile,
                             bool validation);
 
     int maxEvents() const { return source_.maxEvents(); }

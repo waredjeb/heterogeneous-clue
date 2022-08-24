@@ -6,9 +6,11 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "AlpakaCore/alpakaConfig.h"
 #include "AlpakaVecArray.h"
-#include "LayerTilesConstants.h"
+#include "DataFormats/LayerTilesConstants.h"
 
+// namespace ALPAKA_ACCELERATOR_NAMESPACE {
 using alpakaVect = cms::alpakatools::VecArray<int, LayerTilesConstants::maxTileDepth>;
 
 #if !defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && !defined(ALPAKA_ACC_GPU_HIP_ENABLED)
@@ -17,11 +19,11 @@ struct int4 {
 };
 #endif
 
-template <typename Acc>
+template <typename TAcc>
 class LayerTilesAlpaka {
 public:
   // constructor
-  LayerTilesAlpaka(const Acc& acc) { acc_ = acc; };
+  LayerTilesAlpaka(const TAcc& acc) { acc_ = acc; };
 
   ALPAKA_FN_ACC void fill(const std::vector<float>& x, const std::vector<float>& y) {
     auto cellsSize = x.size();
@@ -46,7 +48,6 @@ public:
     ;
     return yBin;
   }
-
   ALPAKA_FN_HOST_ACC int getGlobalBin(float x, float y) const {
     return getXBin(x) + getYBin(y) * LayerTilesConstants::nColumns;
   }
@@ -68,6 +69,8 @@ public:
 
 private:
   cms::alpakatools::VecArray<alpakaVect, LayerTilesConstants::nColumns * LayerTilesConstants::nRows> layerTiles_;
-  const Acc& acc_;
+  const TAcc& acc_;
 };
+// }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
+
 #endif

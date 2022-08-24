@@ -1,10 +1,11 @@
-#ifndef POINTS_CLOUD_ALPAKA_H
-#define POINTS_CLOUD_ALPAKA_H
+#ifndef Points_Cloud_Alpaka_h
+#define Points_Cloud_Alpaka_h
 
 #include <memory>
 
 #include "AlpakaCore/alpakaConfig.h"
 #include "AlpakaCore/alpakaMemory.h"
+#include "DataFormats/PointsCloud.h"
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -13,7 +14,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   class PointsCloudAlpaka {
   public:
     PointsCloudAlpaka() = delete;
-    explicit PointsCloudAlpaka(Queue &stream, int numberOfPoints)
+    explicit PointsCloudAlpaka(Queue &stream, uint32_t numberOfPoints)
         //input variables
         : x{cms::alpakatools::make_device_buffer<float[]>(stream, reserve)},
           y{cms::alpakatools::make_device_buffer<float[]>(stream, reserve)},
@@ -59,26 +60,27 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     cms::alpakatools::device_buffer<Device, int[]> nearestHigher;
     cms::alpakatools::device_buffer<Device, int[]> clusterIndex;
     cms::alpakatools::device_buffer<Device, int[]> isSeed;
-    int n;
+    uint32_t n;
 
-    // class PointsCloudAlpakaView {
-    // public:
-    //   float *x;
-    //   float *y;
-    //   int *layer;
-    //   float *weight;
-    //   float *rho;
-    //   float *delta;
-    //   int *nearestHigher;
-    //   int *clusterIndex;
-    //   int *isSeed;
-    //   int n;
-    // };
+    class PointsCloudAlpakaView {
+    public:
+      float *x;
+      float *y;
+      int *layer;
+      float *weight;
+      float *rho;
+      float *delta;
+      int *nearestHigher;
+      int *clusterIndex;
+      int *isSeed;
+    };
 
+    PointsCloudAlpakaView* view_d;
     // PointsCloudAlpakaView *view() const { return view_d.get(); }
 
-  // private:
+    // private:
     // cms::sycltools::device::unique_ptr<PointsCloudSYCLView> view_d;
   };
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
+
 #endif

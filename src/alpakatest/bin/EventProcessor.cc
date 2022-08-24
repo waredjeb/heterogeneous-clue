@@ -52,6 +52,7 @@ namespace edm {
                                  std::vector<std::string> const& esproducers,
                                  std::filesystem::path const& datadir,
                                  std::filesystem::path const& inputFile,
+                                 std::filesystem::path const& configFile,
                                  bool validation)
       : source_(maxEvents, runForMinutes, registry_, datadir, validation) {
     for (auto const& name : esproducers) {
@@ -59,6 +60,9 @@ namespace edm {
       if (name == "PointsCloudESProducer" or name == "CLUEOutputESProducer" or name == "CLUEValidatorESProducer" or
           name == "ValidatorPointsCloudESProducer") {
         auto esp = ESPluginFactory::create(name, inputFile);
+        esp->produce(eventSetup_);
+      } else if (name == "CLUEAlpakaClusterizerESProducer") {
+        auto esp = ESPluginFactory::create(name, configFile);
         esp->produce(eventSetup_);
       } else {
         auto esp = ESPluginFactory::create(name, datadir);

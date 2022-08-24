@@ -1,5 +1,5 @@
-#ifndef VALIDATOR_POINTS_CLOUD_H
-#define VALIDATOR_POINTS_CLOUD_H
+#ifndef Validator_PointsCloud_h
+#define Validator_PointsCloud_h
 
 #include <vector>
 
@@ -20,6 +20,6 @@ struct ValidatorPointsCloud {
   // std::vector<bool> behaves similarly to std::vector, but in order to be space efficient, it:
   // Does not necessarily store its elements as a contiguous array (so &v[0] + n != &v[n])
 
-  int n;
+  unsigned int n;
 };
 #endif

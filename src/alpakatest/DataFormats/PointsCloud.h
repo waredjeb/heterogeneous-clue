@@ -1,11 +1,11 @@
-#ifndef POINTS_CLOUD_H
-#define POINTS_CLOUD_H
+#ifndef Points_Cloud_h
+#define Points_Cloud_h
 
 #include <vector>
 
 struct PointsCloud {
   PointsCloud() = default;
-  PointsCloud(int const& n) {
+  PointsCloud(unsigned int const& n) {
     x.resize(n);
     y.resize(n);
     layer.resize(n);
@@ -34,6 +34,7 @@ struct PointsCloud {
   // std::vector<bool> behaves similarly to std::vector, but in order to be space efficient, it:
   // Does not necessarily store its elements as a contiguous array (so &v[0] + n != &v[n])
 
-  int n;
+  unsigned int n;
 };
+
 #endif

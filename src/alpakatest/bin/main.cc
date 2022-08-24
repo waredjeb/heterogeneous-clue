@@ -39,7 +39,7 @@ namespace {
         << "[--hip] "
 #endif
         << "[--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--data PATH] [--inputFile "
-           "PATH] [--transfer] [--validation] "
+           "PATH] [--configFile] [--transfer] [--validation] "
            "[--empty]\n\n"
         << "Options\n"
 #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
@@ -62,6 +62,9 @@ namespace {
         << " --data              Path to the 'data' directory (default 'data' in the directory of the executable)\n"
         << " --inputFile         Path to the input file to cluster with CLUE (default is set to "
            "data/input/toyDetector_1k.csv)'\n"
+        << " --configFile        Path to the config file with the parameters (dc, rhoc, outlierDeltaFactor, "
+           "produceOutput) to run CLUE (implies --transfer, default 'config/test_without_output.csv' in the directory "
+           "of the executable)\n"
         << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
         << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
         << " --empty             Ignore all producers (for testing only)\n"
@@ -130,6 +133,7 @@ int main(int argc, char** argv) {
   int runForMinutes = -1;
   std::filesystem::path datadir;
   std::filesystem::path inputFile;
+  std::filesystem::path configFile;
   bool transfer = false;
   bool validation = false;
   bool empty = false;
@@ -175,6 +179,9 @@ int main(int argc, char** argv) {
       std::cout << "Datadir: " << datadir << std::endl;
     } else if (*i == "--inputFile") {
       getArgument(args, i, inputFile);
+    } else if (*i == "--configFile") {
+      getArgument(args, i, inputFile);
+      transfer = true;
     } else if (*i == "--transfer") {
       transfer = true;
     } else if (*i == "--validation") {
@@ -211,6 +218,12 @@ int main(int argc, char** argv) {
   if (not std::filesystem::exists(inputFile)) {
     std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
   }
+  if (configFile.empty()) {
+    inputFile = std::filesystem::path(args[0]).parent_path() / "config" / "test_without_output.csv";
+  }
+  if (not std::filesystem::exists(configFile)) {
+    std::cout << "Config file '" << configFile << "' does not exist" << std::endl;
+  }
 
   // Initialiase the selected backends
 #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
@@ -239,12 +252,13 @@ int main(int argc, char** argv) {
   edm::Alternatives alternatives;
   if (not empty) {
     // host-only ESModules
-    esmodules = {"PointsCloudESProducer"};
+    esmodules = {"PointsCloudESProducer", "CLUEAlpakaClusterizerESProducer"};
     for (auto const& [backend, weight] : backends) {
       std::string prefix = "alpaka_" + name(backend) + "::";
       // "portable" EDModules
       std::vector<std::string> edmodules;
-      edmodules.emplace_back(prefix + "PointsCloudProducer");  //{"PointsCloudToAlpaka", "CLUEAlpakaClusterizer"};
+      edmodules.emplace_back(prefix + "PointsCloudProducer");
+      edmodules.emplace_back(prefix + "CLUEAlpakaClusterizer");
       if (transfer) {
         // add modules for transfer
       }
@@ -262,6 +276,7 @@ int main(int argc, char** argv) {
                                 std::move(esmodules),
                                 datadir,
                                 inputFile,
+                                configFile,
                                 validation);
 
   if (runForMinutes < 0) {

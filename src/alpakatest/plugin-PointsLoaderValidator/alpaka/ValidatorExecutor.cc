@@ -10,7 +10,7 @@
 #include "AlpakaCore/ScopedContext.h"
 #include "AlpakaCore/alpakaMemory.h"
 
-#include "AlpakaDataFormats/PointsCloudAlpaka.h"
+#include "AlpakaDataFormats/alpaka/PointsCloudAlpaka.h"
 #include "../ValidatorData.h"
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
