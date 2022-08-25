@@ -4,6 +4,8 @@
 #include "AlpakaDataFormats/LayerTilesAlpaka.h"
 #include "AlpakaDataFormats/alpaka/PointsCloudAlpaka.h"
 
+// #include <assert.h>
+
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   using pointsView = PointsCloudAlpaka::PointsCloudAlpakaView;
@@ -150,11 +152,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     ALPAKA_FN_ACC void operator()(const TAcc &acc,
                                   cms::alpakatools::VecArray<int, maxNSeeds> *d_seeds,
                                   cms::alpakatools::VecArray<int, maxNFollowers> *d_followers,
-                                  pointsView *d_points,
-                                  uint32_t const &numberOfPoints) const {
+                                  pointsView *d_points) const {
       const auto &seeds = d_seeds[0];
       const auto nSeeds = seeds.size();
-      cms::alpakatools::for_each_element_in_grid(acc, numberOfPoints, [&](uint32_t idxCls) {
+      cms::alpakatools::for_each_element_in_grid(acc, nSeeds, [&](uint32_t idxCls) {
         int localStack[localStackSizePerSeed] = {-1};
         int localStackSize = 0;
 
@@ -162,14 +163,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         int idxThisSeed = seeds[idxCls];
         d_points->clusterIndex[idxThisSeed] = idxCls;
         // push_back idThisSeed to localStack
+        assert((localStackSize < localStackSizePerSeed));
+
         localStack[localStackSize] = idxThisSeed;
         localStackSize++;
         // process all elements in localStack
         while (localStackSize > 0) {
           // get last element of localStack
+          assert((localStackSize - 1 < localStackSizePerSeed));
           int idxEndOfLocalStack = localStack[localStackSize - 1];
           int temp_clusterIndex = d_points->clusterIndex[idxEndOfLocalStack];
           // pop_back last element of localStack
+          assert((localStackSize - 1 < localStackSizePerSeed));
           localStack[localStackSize - 1] = -1;
           localStackSize--;
 
@@ -178,6 +183,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             // pass id to follower
             d_points->clusterIndex[j] = temp_clusterIndex;
             // push_back follower to localStack
+            assert((localStackSize < localStackSizePerSeed));
             localStack[localStackSize] = j;
             localStackSize++;
           }

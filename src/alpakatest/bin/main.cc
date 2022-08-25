@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
     numberOfStreams = numberOfThreads;
   }
   if (inputFile.empty()) {
-    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_1k.csv";
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_10k.csv";
   }
   if (not std::filesystem::exists(inputFile)) {
     std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
@@ -274,7 +274,8 @@ int main(int argc, char** argv) {
       std::vector<std::string> edmodules;
       edmodules.emplace_back(prefix + "CLUEAlpakaClusterizer");
       if (transfer) {
-        // add modules for transfer
+        esmodules.emplace_back("CLUEOutputESProducer");
+        edmodules.emplace_back(prefix + "CLUEOutputProducer");
       }
       if (validation) {
         // esmodules.emplace_back("ValidatorPointsCloudESProducer");

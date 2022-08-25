@@ -23,11 +23,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           queue_{std::move(stream)},
           dc_{dc},
           rhoc_{rhoc},
-          outlierDeltaFactor_{outlierDeltaFactor},
-          d_hist{cms::alpakatools::make_device_buffer<LayerTilesAlpaka<Acc1D>[]>(stream, NLAYERS)},
-          d_seeds{cms::alpakatools::make_device_buffer<cms::alpakatools::VecArray<int, maxNSeeds>[]>(stream, 1)},
-          d_followers{
-              cms::alpakatools::make_device_buffer<cms::alpakatools::VecArray<int, maxNFollowers>[]>(stream, reserve)} {
+          outlierDeltaFactor_{outlierDeltaFactor} {
       init_device();
     }
 
@@ -36,6 +32,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     void makeClusters(PointsCloud const &host_pc);
 
     PointsCloudAlpaka d_points;
+
     LayerTilesAlpaka<Acc1D> *hist_;
     cms::alpakatools::VecArray<int, maxNSeeds> *seeds_;
     cms::alpakatools::VecArray<int, maxNFollowers> *followers_;
@@ -46,9 +43,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     float rhoc_;
     float outlierDeltaFactor_;
 
-    cms::alpakatools::device_buffer<Device, LayerTilesAlpaka<Acc1D>[]> d_hist;
-    cms::alpakatools::device_buffer<Device, cms::alpakatools::VecArray<int, maxNSeeds>[]> d_seeds;
-    cms::alpakatools::device_buffer<Device, cms::alpakatools::VecArray<int, maxNFollowers>[]> d_followers;
+    std::optional<cms::alpakatools::device_buffer<Device, LayerTilesAlpaka<Acc1D>[]>> d_hist;
+    std::optional<cms::alpakatools::device_buffer<Device, cms::alpakatools::VecArray<int, maxNSeeds>>> d_seeds;
+    std::optional<cms::alpakatools::device_buffer<Device, cms::alpakatools::VecArray<int, maxNFollowers>[]>> d_followers;
 
     // private methods
     void init_device();

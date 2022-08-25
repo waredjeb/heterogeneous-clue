@@ -35,7 +35,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     Parameters const& par = eventSetup.get<Parameters>();
     auto stream = ctx.stream();
     CLUEAlgoAlpaka clueAlgo(par.dc, par.rhoc, par.outlierDeltaFactor, stream, pc.n);
-    // clueAlgo.makeClusters(pc);
+    clueAlgo.makeClusters(pc);
 
     ctx.emplace(event, clusterToken_, std::move(clueAlgo.d_points));
   }

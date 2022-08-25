@@ -26,23 +26,22 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           nearestHigher{cms::alpakatools::make_device_buffer<int[]>(stream, reserve)},
           clusterIndex{cms::alpakatools::make_device_buffer<int[]>(stream, reserve)},
           isSeed{cms::alpakatools::make_device_buffer<int[]>(stream, reserve)},
-          n{numberOfPoints} {
-      // auto view = std::make_unique<PointsCloudAlpakaView>();
-      // view->x = x.get();
-      // view->y = y.get();
-      // view->layer = layer.get();
-      // view->weight = weight.get();
-      // view->rho = rho.get();
-      // view->delta = delta.get();
-      // view->nearestHigher = nearestHigher.get();
-      // view->clusterIndex = clusterIndex.get();
-      // view->isSeed = isSeed.get();
-      // view->n = numberOfPoints;
+          n{numberOfPoints},
+          view_d{cms::alpakatools::make_device_buffer<PointsCloudAlpakaView>(stream)} {
+      auto view_h = cms::alpakatools::make_host_buffer<PointsCloudAlpakaView>(stream);
+      view_h->x = x.data();
+      view_h->y = y.data();
+      view_h->layer = layer.data();
+      view_h->weight = weight.data();
+      view_h->rho = rho.data();
+      view_h->delta = delta.data();
+      view_h->nearestHigher = nearestHigher.data();
+      view_h->clusterIndex = clusterIndex.data();
+      view_h->isSeed = isSeed.data();
+      view_h->n = numberOfPoints;
 
-      // view_d = cms::sycltools::make_device_unique<PointsCloudSYCLView>(stream);
-      // stream.memcpy(view_d.get(), view.get(), sizeof(PointsCloudSYCLView)).wait();
-
-      //// either make host and device view to each buffer or use Marco's strategy
+      alpaka::memcpy(stream, view_d, view_h);
+      alpaka::wait(stream);
     }
     PointsCloudAlpaka(PointsCloudAlpaka const &) = delete;
     PointsCloudAlpaka(PointsCloudAlpaka &&) = default;
@@ -73,13 +72,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       int *nearestHigher;
       int *clusterIndex;
       int *isSeed;
+      uint32_t n;
     };
 
-    PointsCloudAlpakaView* view_d;
-    // PointsCloudAlpakaView *view() const { return view_d.get(); }
+    PointsCloudAlpakaView *view() { return view_d.data(); }
 
-    // private:
-    // cms::sycltools::device::unique_ptr<PointsCloudSYCLView> view_d;
+  private:
+    cms::alpakatools::device_buffer<Device, PointsCloudAlpakaView> view_d;
   };
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
 

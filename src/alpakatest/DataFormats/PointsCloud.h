@@ -5,19 +5,17 @@
 
 struct PointsCloud {
   PointsCloud() = default;
-  PointsCloud(unsigned int const& n) {
-    x.resize(n);
-    y.resize(n);
-    layer.resize(n);
-    weight.resize(n);
 
-    rho.resize(n);
-    delta.resize(n);
-    nearestHigher.resize(n);
-    clusterIndex.resize(n);
-    followers.resize(n);
-    isSeed.resize(n);
+  void outResize(unsigned int const& nPoints) {
+    rho.resize(nPoints);
+    delta.resize(nPoints);
+    nearestHigher.resize(nPoints);
+    clusterIndex.resize(nPoints);
+    followers.resize(nPoints);
+    isSeed.resize(nPoints);
+    n = nPoints;
   }
+
   std::vector<float> x;
   std::vector<float> y;
   std::vector<int> layer;
