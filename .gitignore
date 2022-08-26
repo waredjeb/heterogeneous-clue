@@ -32,8 +32,7 @@
 /sycltest
 #dev
 /.vscode
-src/.vscode/
-/src/alpakatest/.vscode/
+/src/.vscode/
 #config
  /config/*.csv
  !config/test_output.csv
