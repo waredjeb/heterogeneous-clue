@@ -6,19 +6,21 @@
 #include "Source.h"
 
 namespace {
-  PointsCloud readFile(std::ifstream &is) {
+  PointsCloud readFile(std::filesystem::path const &inputFile) {
     PointsCloud data;
     for (int l = 0; l < NLAYERS; l++) {
+      std::ifstream in(inputFile);
       std::string value = "";
-      while (getline(is, value, ',')) {
-        data.x.push_back(std::stof(value));
-        getline(is, value, ',');
-        data.y.push_back(std::stof(value));
-        getline(is, value, ',');
-        data.layer.push_back(std::stoi(value) + l);
-        getline(is, value);
-        data.weight.push_back(std::stof(value));
+      while (getline(in, value, ',')) {
+        data.x.emplace_back(std::stof(value));
+        getline(in, value, ',');
+        data.y.emplace_back(std::stof(value));
+        getline(in, value, ',');
+        data.layer.emplace_back(std::stoi(value) + l);
+        getline(in, value);
+        data.weight.emplace_back(std::stof(value));
       }
+      in.close();
     }
     data.n = data.x.size();
     return data;
@@ -28,13 +30,10 @@ namespace {
 namespace edm {
   Source::Source(int maxEvents, int runForMinutes, ProductRegistry &reg, std::filesystem::path const &inputFile)
       : maxEvents_(maxEvents), runForMinutes_(runForMinutes), cloudToken_(reg.produces<PointsCloud>()) {
+    std::string input(inputFile);
+    cloud_.emplace_back(readFile(inputFile));
     if (runForMinutes_ < 0 and maxEvents_ < 0) {
       maxEvents_ = 10;
-    }
-    for (int i = 0; i != maxEvents_; i++) {
-      std::ifstream iFile(inputFile);
-      cloud_.emplace_back(readFile(iFile));
-      iFile.close();
     }
   }
 

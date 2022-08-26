@@ -1,15 +1,10 @@
-#include <algorithm>
 #include <chrono>
 #include <cstdlib>
-#include <exception>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
-#include <ios>
-#include <iostream>
-#include <unordered_map>
 #include <stdexcept>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <tbb/global_control.h>
@@ -58,8 +53,10 @@ namespace {
         << " --maxEvents         Number of events to process (default -1 for all events in the input file)\n"
         << " --runForMinutes     Continue processing the set of 1000 events until this many minutes have passed "
            "(default -1 for disabled; conflicts with --maxEvents)\n"
-        << " --data              Path to the 'data' directory (default 'data' in the directory of the executable)\n"
+        << " --inputFile         Path to the input file (default 'data/input/toyDetector_1k.csv' in the directory of "
+           "the executable)\n"
         << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
+        << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
         << " --empty             Ignore all producers (for testing only)\n"
         << std::endl;
   }
@@ -123,8 +120,9 @@ int main(int argc, char** argv) {
   int numberOfStreams = 0;
   int maxEvents = -1;
   int runForMinutes = -1;
-  std::filesystem::path datadir;
+  std::filesystem::path inputFile;
   bool transfer = false;
+  bool validation = false;
   bool empty = false;
   for (auto i = args.begin() + 1, e = args.end(); i != e; ++i) {
     if (*i == "-h" or *i == "--help") {
@@ -162,10 +160,13 @@ int main(int argc, char** argv) {
       getArgument(args, i, maxEvents);
     } else if (*i == "--runForMinutes") {
       getArgument(args, i, runForMinutes);
-    } else if (*i == "--data") {
-      getArgument(args, i, datadir);
+    } else if (*i == "--inputFile") {
+      getArgument(args, i, inputFile);
     } else if (*i == "--transfer") {
       transfer = true;
+    } else if (*i == "--validation") {
+      transfer = true;
+      validation = true;
     } else if (*i == "--empty") {
       empty = true;
     } else {
@@ -184,11 +185,11 @@ int main(int argc, char** argv) {
   if (numberOfStreams == 0) {
     numberOfStreams = numberOfThreads;
   }
-  if (datadir.empty()) {
-    datadir = std::filesystem::path(args[0]).parent_path() / "data";
+  if (inputFile.empty()) {
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data" / "input" / "toyDetector_1k.csv";
   }
-  if (not std::filesystem::exists(datadir)) {
-    std::cout << "Data directory '" << datadir << "' does not exist" << std::endl;
+  if (not std::filesystem::exists(inputFile)) {
+    std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -230,11 +231,14 @@ int main(int argc, char** argv) {
       if (transfer) {
         // add modules for transfer
       }
+      if (validation) {
+        // add modules for validation
+      }
       alternatives.emplace_back(backend, weight, std::move(edmodules));
     }
   }
   edm::EventProcessor processor(
-      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), datadir, false);
+      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), inputFile);
 
   if (runForMinutes < 0) {
     std::cout << "Processing " << processor.maxEvents() << " events,";
