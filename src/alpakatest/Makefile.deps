@@ -5,7 +5,5 @@ endif
 ifdef ROCM_BASE
 alpakatest_EXTERNAL_DEPENDS += ROCM
 endif
-PointsLoader_DEPENDS := Framework DataFormats AlpakaCore AlpakaDataFormats
-PointsLoaderValidator_DEPENDS := Framework AlpakaCore AlpakaDataFormats DataFormats
-CLUEClusterizer_DEPENDS := Framework DataFormats AlpakaCore AlpakaDataFormats
-CLUEOutputProducer_DEPENDS := Framework DataFormats AlpakaCore AlpakaDataFormats
+Test1_DEPENDS := Framework DataFormats AlpakaCore
+Test2_DEPENDS := Framework DataFormats AlpakaCore

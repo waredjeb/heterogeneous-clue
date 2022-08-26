@@ -1,21 +1,19 @@
-#include <algorithm>
+// #include <algorithm>
 #include <chrono>
 #include <cstdlib>
-#include <exception>
+// #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
-#include <ios>
-#include <iostream>
-#include <unordered_map>
 #include <stdexcept>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <tbb/global_control.h>
 #include <tbb/info.h>
 #include <tbb/task_arena.h>
 
+#include "DataFormats/CLUE_config.h"
 #include "AlpakaCore/alpakaConfig.h"
 #include "AlpakaCore/backend.h"
 #include "AlpakaCore/initialise.h"
@@ -38,8 +36,9 @@ namespace {
 #ifdef ALPAKA_ACC_GPU_HIP_PRESENT
         << "[--hip] "
 #endif
-        << "[--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--data PATH] "
-           "[--transfer]\n\n"
+        << "[--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--data PATH] [--inputFile "
+           "PATH] [--configFile] [--transfer] [--validation] "
+           "[--empty]\n\n"
         << "Options\n"
 #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
         << " --serial            Use CPU Serial backend\n"
@@ -59,7 +58,13 @@ namespace {
         << " --runForMinutes     Continue processing the set of 1000 events until this many minutes have passed "
            "(default -1 for disabled; conflicts with --maxEvents)\n"
         << " --data              Path to the 'data' directory (default 'data' in the directory of the executable)\n"
+        << " --inputFile         Path to the input file to cluster with CLUE (default is set to "
+           "data/input/toyDetector_1k.csv)'\n"
+        << " --configFile        Path to the config file with the parameters (dc, rhoc, outlierDeltaFactor, "
+           "produceOutput) to run CLUE (implies --transfer, default 'config/test_without_output.csv' in the directory "
+           "of the executable)\n"
         << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
+        << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
         << " --empty             Ignore all producers (for testing only)\n"
         << std::endl;
   }
@@ -104,6 +109,7 @@ bool getOptionalArgument(std::vector<std::string> const& args,
     return false;
   }
   value = *it;
+  ++i;
   return true;
 }
 
@@ -123,8 +129,10 @@ int main(int argc, char** argv) {
   int numberOfStreams = 0;
   int maxEvents = -1;
   int runForMinutes = -1;
-  std::filesystem::path datadir;
+  std::filesystem::path inputFile;
+  std::filesystem::path configFile;
   bool transfer = false;
+  bool validation = false;
   bool empty = false;
   for (auto i = args.begin() + 1, e = args.end(); i != e; ++i) {
     if (*i == "-h" or *i == "--help") {
@@ -162,10 +170,16 @@ int main(int argc, char** argv) {
       getArgument(args, i, maxEvents);
     } else if (*i == "--runForMinutes") {
       getArgument(args, i, runForMinutes);
-    } else if (*i == "--data") {
-      getArgument(args, i, datadir);
+    } else if (*i == "--inputFile") {
+      getArgument(args, i, inputFile);
+    } else if (*i == "--configFile") {
+      getArgument(args, i, configFile);
+      transfer = true;
     } else if (*i == "--transfer") {
       transfer = true;
+    } else if (*i == "--validation") {
+      transfer = true;
+      validation = true;
     } else if (*i == "--empty") {
       empty = true;
     } else {
@@ -184,14 +198,20 @@ int main(int argc, char** argv) {
   if (numberOfStreams == 0) {
     numberOfStreams = numberOfThreads;
   }
-  if (datadir.empty()) {
-    datadir = std::filesystem::path(args[0]).parent_path() / "data";
+  if (inputFile.empty()) {
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_10k.csv";
   }
-  if (not std::filesystem::exists(datadir)) {
-    std::cout << "Data directory '" << datadir << "' does not exist" << std::endl;
+  if (not std::filesystem::exists(inputFile)) {
+    std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
     return EXIT_FAILURE;
   }
-
+  if (configFile.empty()) {
+    configFile = std::filesystem::path(args[0]).parent_path() / "config" / "test_without_output.csv";
+  }
+  if (not std::filesystem::exists(configFile)) {
+    std::cout << "Config file '" << configFile << "' does not exist" << std::endl;
+    return EXIT_FAILURE;
+  }
   // Initialiase the selected backends
 #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
   if (backends.find(Backend::SERIAL) != backends.end()) {
@@ -214,27 +234,54 @@ int main(int argc, char** argv) {
   }
 #endif
 
+  Parameters par;
+  std::ifstream iFile(configFile);
+  std::string value = "";
+  while (getline(iFile, value, ',')) {
+    par.dc = std::stof(value);
+    getline(iFile, value, ',');
+    par.rhoc = std::stof(value);
+    getline(iFile, value, ',');
+    par.outlierDeltaFactor = std::stof(value);
+    getline(iFile, value);
+    par.produceOutput = static_cast<bool>(std::stoi(value));
+  }
+  iFile.close();
+
+  std::cout << "Running CLUE algorithm with the following parameters: \n";
+  std::cout << "dc = " << par.dc << '\n';
+  std::cout << "rhoc = " << par.rhoc << '\n';
+  std::cout << "outlierDeltaFactor = " << par.outlierDeltaFactor << std::endl;
+
+  if (par.produceOutput) {
+    transfer = true;
+    std::cout << "Producing output at the end" << std::endl;
+  }
+
   // Initialize EventProcessor
   std::vector<std::string> esmodules;
   edm::Alternatives alternatives;
   if (not empty) {
     // host-only ESModules
-    esmodules = {"IntESProducer"};
+    esmodules = {"CLUEAlpakaClusterizerESProducer"};
     for (auto const& [backend, weight] : backends) {
       std::string prefix = "alpaka_" + name(backend) + "::";
       // "portable" EDModules
       std::vector<std::string> edmodules;
-      edmodules.emplace_back(prefix + "TestProducer");
-      edmodules.emplace_back(prefix + "TestProducer3");
-      edmodules.emplace_back(prefix + "TestProducer2");
+      edmodules.emplace_back(prefix + "CLUEAlpakaClusterizer");
       if (transfer) {
-        // add modules for transfer
+        esmodules.emplace_back("CLUEOutputESProducer");
+        edmodules.emplace_back(prefix + "CLUEOutputProducer");
+      }
+      if (validation) {
+        esmodules.emplace_back("CLUEValidatorESProducer");
+        edmodules.emplace_back(prefix + "CLUEValidator");
       }
       alternatives.emplace_back(backend, weight, std::move(edmodules));
     }
   }
   edm::EventProcessor processor(
-      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), datadir, false);
+      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), inputFile, configFile);
 
   if (runForMinutes < 0) {
     std::cout << "Processing " << processor.maxEvents() << " events,";
