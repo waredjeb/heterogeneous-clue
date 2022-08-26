@@ -19,8 +19,7 @@ namespace edm {
                             int numberOfStreams,
                             std::vector<std::string> const& path,
                             std::vector<std::string> const& esproducers,
-                            std::filesystem::path const& datadir,
-                            bool validation);
+                            std::filesystem::path const& inputFile);
 
     int maxEvents() const { return source_.maxEvents(); }
     int processedEvents() const { return source_.processedEvents(); }

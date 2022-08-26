@@ -9,16 +9,13 @@
 #include <string>
 
 #include "Framework/Event.h"
-#include "DataFormats/FEDRawDataCollection.h"
-#include "DataFormats/DigiClusterCount.h"
-#include "DataFormats/TrackCount.h"
-#include "DataFormats/VertexCount.h"
+#include "DataFormats/PointsCloud.h"
+#include "DataFormats/LayerTilesConstants.h"
 
 namespace edm {
   class Source {
   public:
-    explicit Source(
-        int maxEvents, int runForMinutes, ProductRegistry& reg, std::filesystem::path const& datadir, bool validation);
+    explicit Source(int maxEvents, int runForMinutes, ProductRegistry& reg, std::filesystem::path const& inputFile);
 
     void startProcessing();
 
@@ -39,15 +36,8 @@ namespace edm {
     std::atomic<bool> shouldStop_ = false;
 
     std::atomic<int> numEvents_ = 0;
-    EDPutTokenT<FEDRawDataCollection> const rawToken_;
-    EDPutTokenT<DigiClusterCount> digiClusterToken_;
-    EDPutTokenT<TrackCount> trackToken_;
-    EDPutTokenT<VertexCount> vertexToken_;
-    std::vector<FEDRawDataCollection> raw_;
-    std::vector<DigiClusterCount> digiclusters_;
-    std::vector<TrackCount> tracks_;
-    std::vector<VertexCount> vertices_;
-    bool const validation_;
+    EDPutTokenT<PointsCloud> const cloudToken_;
+    std::vector<PointsCloud> cloud_;
   };
 }  // namespace edm
 
