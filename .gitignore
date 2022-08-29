@@ -33,7 +33,7 @@
 #dev
 /.vscode
 src/.vscode/
-/src/alpakatest/.vscode/
+src/alpakatest/.vscode/
 #config
  /config/*.csv
  !config/test_output.csv
