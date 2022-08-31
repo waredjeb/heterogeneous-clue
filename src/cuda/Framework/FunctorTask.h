@@ -10,7 +10,7 @@
  Description: Builds a tbb::task from a lambda.
 
  Usage:
- 
+
 */
 //
 // Original Author:  Chris Jones
@@ -29,21 +29,23 @@
 // forward declarations
 
 namespace edm {
-  template <typename F>
-  class FunctorTask : public TaskBase {
-  public:
-    explicit FunctorTask(F f) : func_(std::move(f)) {}
+template <typename F>
+class FunctorTask : public TaskBase {
+public:
+  explicit FunctorTask(F f) : func_(std::move(f)) {}
 
-    void execute() final { func_(); };
-
-  private:
-    F func_;
+  void execute() final {
+    func_();
   };
 
-  template <typename F>
-  FunctorTask<F>* make_functor_task(F f) {
-    return new FunctorTask<F>(std::move(f));
-  }
+private:
+  F func_;
+};
+
+template <typename F>
+FunctorTask<F>* make_functor_task(F f) {
+  return new FunctorTask<F>(std::move(f));
+}
 }  // namespace edm
 
 #endif

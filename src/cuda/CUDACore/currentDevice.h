@@ -6,13 +6,13 @@
 #include <cuda_runtime.h>
 
 namespace cms {
-  namespace cuda {
-    inline int currentDevice() {
-      int dev;
-      cudaCheck(cudaGetDevice(&dev));
-      return dev;
-    }
-  }  // namespace cuda
+namespace cuda {
+inline int currentDevice() {
+  int dev;
+  cudaCheck(cudaGetDevice(&dev));
+  return dev;
+}
+}  // namespace cuda
 }  // namespace cms
 
 #endif

@@ -20,7 +20,8 @@ std::string to_string_with_precision(const T a_value, const int n = 6) {
   return out.str();
 }
 
-inline std::string create_outputfileName(std::string inputFileName, float dc, float rhoc, float outlierDeltaFactor) {
+inline std::string create_outputfileName(std::string inputFileName, float dc,
+                                         float rhoc, float outlierDeltaFactor) {
   std::string underscore = "_", suffix = "";
   suffix.append(underscore);
   suffix.append(to_string_with_precision(dc, 2));
@@ -32,11 +33,13 @@ inline std::string create_outputfileName(std::string inputFileName, float dc, fl
 
   std::string tmpFileName;
   std::regex regexp("input");
-  std::regex_replace(back_inserter(tmpFileName), inputFileName.begin(), inputFileName.end(), regexp, "output");
+  std::regex_replace(back_inserter(tmpFileName), inputFileName.begin(),
+                     inputFileName.end(), regexp, "output");
 
   std::string outputFileName;
   std::regex regexp2(".csv");
-  std::regex_replace(back_inserter(outputFileName), tmpFileName.begin(), tmpFileName.end(), regexp2, suffix);
+  std::regex_replace(back_inserter(outputFileName), tmpFileName.begin(),
+                     tmpFileName.end(), regexp2, suffix);
 
   return outputFileName;
 }

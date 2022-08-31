@@ -8,7 +8,8 @@
 
 class CLUECUDAClusterizerESProducer : public edm::ESProducer {
 public:
-  CLUECUDAClusterizerESProducer(std::filesystem::path const& config_file) : data_{config_file} {}
+  CLUECUDAClusterizerESProducer(std::filesystem::path const& config_file)
+      : data_{config_file} {}
   void produce(edm::EventSetup& eventSetup);
 
 private:

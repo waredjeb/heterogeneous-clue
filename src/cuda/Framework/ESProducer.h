@@ -2,15 +2,15 @@
 #define ESProducer_h
 
 namespace edm {
-  class EventSetup;
+class EventSetup;
 
-  class ESProducer {
-  public:
-    ESProducer() = default;
-    virtual ~ESProducer() = default;
+class ESProducer {
+public:
+  ESProducer() = default;
+  virtual ~ESProducer() = default;
 
-    virtual void produce(EventSetup& eventSetup) = 0;
-  };
+  virtual void produce(EventSetup& eventSetup) = 0;
+};
 }  // namespace edm
 
 #endif

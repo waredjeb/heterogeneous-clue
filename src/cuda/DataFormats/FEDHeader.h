@@ -43,12 +43,8 @@ public:
   bool check() const;
 
   /// Set all fields in the header
-  static void set(unsigned char* header,
-                  uint8_t triggerType,
-                  uint32_t lvl1ID,
-                  uint16_t bxID,
-                  uint16_t sourceID,
-                  uint8_t version = 0,
+  static void set(unsigned char* header, uint8_t triggerType, uint32_t lvl1ID,
+                  uint16_t bxID, uint16_t sourceID, uint8_t version = 0,
                   bool moreHeaders = false);
 
   static const uint32_t length;

@@ -39,7 +39,8 @@ WaitingTaskList::WaitingTaskList(unsigned int iInitialSize)
       m_lastAssignedCacheIndex{0},
       m_waiting{true} {
   auto nodeCache = m_nodeCache.get();
-  for (auto it = nodeCache, itEnd = nodeCache + m_nodeCacheSize; it != itEnd; ++it) {
+  for (auto it = nodeCache, itEnd = nodeCache + m_nodeCacheSize; it != itEnd;
+       ++it) {
     it->m_fromCache = true;
   }
 }
@@ -53,20 +54,22 @@ void WaitingTaskList::reset() {
   m_lastAssignedCacheIndex = 0;
   assert(m_head == nullptr);
   if (nSeenTasks > m_nodeCacheSize) {
-    //need to expand so next time we don't have to do any
+    // need to expand so next time we don't have to do any
     // memory requests
     m_nodeCacheSize = nSeenTasks;
     m_nodeCache.reset(new WaitNode[nSeenTasks]);
     auto nodeCache = m_nodeCache.get();
-    for (auto it = nodeCache, itEnd = nodeCache + m_nodeCacheSize; it != itEnd; ++it) {
+    for (auto it = nodeCache, itEnd = nodeCache + m_nodeCacheSize; it != itEnd;
+         ++it) {
       it->m_fromCache = true;
     }
   }
-  //this will make sure all cores see the changes
+  // this will make sure all cores see the changes
   m_waiting = true;
 }
 
-WaitingTaskList::WaitNode* WaitingTaskList::createNode(tbb::task_group* iGroup, WaitingTask* iTask) {
+WaitingTaskList::WaitNode* WaitingTaskList::createNode(tbb::task_group* iGroup,
+                                                       WaitingTask* iTask) {
   unsigned int index = m_lastAssignedCacheIndex++;
 
   WaitNode* returnValue;
@@ -78,7 +81,7 @@ WaitingTaskList::WaitNode* WaitingTaskList::createNode(tbb::task_group* iGroup, 
   }
   returnValue->m_task = iTask;
   returnValue->m_group = iGroup;
-  //No other thread can see m_next yet. The caller to create node
+  // No other thread can see m_next yet. The caller to create node
   // will be doing a synchronization operation anyway which will
   // make sure m_task and m_next are synched across threads
   returnValue->m_next.store(returnValue, std::memory_order_relaxed);
@@ -94,12 +97,12 @@ void WaitingTaskList::add(WaitingTaskHolder iTask) {
   } else {
     auto task = iTask.release_no_decrement();
     WaitNode* newHead = createNode(iTask.group(), task);
-    //This exchange is sequentially consistent thereby
+    // This exchange is sequentially consistent thereby
     // ensuring ordering between it and setNextNode
     WaitNode* oldHead = m_head.exchange(newHead);
     newHead->setNextNode(oldHead);
 
-    //For the case where oldHead != nullptr,
+    // For the case where oldHead != nullptr,
     // even if 'm_waiting' changed, we don't
     // have to recheck since we beat 'announce()' in
     // the ordering of 'm_head.exchange' call so iTask
@@ -108,7 +111,7 @@ void WaitingTaskList::add(WaitingTaskHolder iTask) {
     if (nullptr == oldHead) {
       newHead->setNextNode(nullptr);
       if (!m_waiting) {
-        //if finished waiting right before we did the
+        // if finished waiting right before we did the
         // exchange our task will not be run. Also,
         // additional threads may be calling add() and swapping
         // heads and linking us to the new head.
@@ -133,12 +136,12 @@ void WaitingTaskList::add(tbb::task_group* iGroup, WaitingTask* iTask) {
     }
   } else {
     WaitNode* newHead = createNode(iGroup, iTask);
-    //This exchange is sequentially consistent thereby
+    // This exchange is sequentially consistent thereby
     // ensuring ordering between it and setNextNode
     WaitNode* oldHead = m_head.exchange(newHead);
     newHead->setNextNode(oldHead);
 
-    //For the case where oldHead != nullptr,
+    // For the case where oldHead != nullptr,
     // even if 'm_waiting' changed, we don't
     // have to recheck since we beat 'announce()' in
     // the ordering of 'm_head.exchange' call so iTask
@@ -146,7 +149,7 @@ void WaitingTaskList::add(tbb::task_group* iGroup, WaitingTask* iTask) {
 
     if (nullptr == oldHead) {
       if (!m_waiting) {
-        //if finished waiting right before we did the
+        // if finished waiting right before we did the
         // exchange our task will not be run. Also,
         // additional threads may be calling add() and swapping
         // heads and linking us to the new head.
@@ -172,16 +175,18 @@ void WaitingTaskList::presetTaskAsFailed(std::exception_ptr iExcept) {
 }
 
 void WaitingTaskList::announce() {
-  //Need a temporary storage since one of these tasks could
+  // Need a temporary storage since one of these tasks could
   // cause the next event to start processing which would refill
   // this waiting list after it has been reset
   WaitNode* n = m_head.exchange(nullptr);
   WaitNode* next;
   while (n) {
-    //it is possible that 'WaitingTaskList::add' is running in a different
+    // it is possible that 'WaitingTaskList::add' is running in a different
     // thread and we have a new 'head' but the old head has not yet been
-    // attached to the new head (we identify this since 'nextNode' will return itself).
-    //  In that case we have to wait until the link has been established before going on.
+    // attached to the new head (we identify this since 'nextNode' will return
+    // itself).
+    //  In that case we have to wait until the link has been established before
+    // going on.
     while (n == (next = n->nextNode())) {
       hardware_pause();
     }
@@ -195,7 +200,7 @@ void WaitingTaskList::announce() {
     }
     n = next;
 
-    //the task may indirectly call WaitingTaskList::reset
+    // the task may indirectly call WaitingTaskList::reset
     // so we need to call spawn after we are done using the node.
     if (0 == t->decrement_ref_count()) {
       g->run([t]() {

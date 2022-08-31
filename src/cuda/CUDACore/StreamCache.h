@@ -11,40 +11,40 @@
 class CUDAService;
 
 namespace cms {
-  namespace cuda {
-    class StreamCache {
-    public:
-      using BareStream = SharedStreamPtr::element_type;
+namespace cuda {
+class StreamCache {
+public:
+  using BareStream = SharedStreamPtr::element_type;
 
-      StreamCache();
+  StreamCache();
 
-      // Gets a (cached) CUDA stream for the current device. The stream
-      // will be returned to the cache by the shared_ptr destructor.
-      // This function is thread safe
-      SharedStreamPtr get();
+  // Gets a (cached) CUDA stream for the current device. The stream
+  // will be returned to the cache by the shared_ptr destructor.
+  // This function is thread safe
+  SharedStreamPtr get();
 
-    private:
-      friend class ::CUDAService;
-      // not thread safe, intended to be called only from CUDAService destructor
-      void clear();
+private:
+  friend class ::CUDAService;
+  // not thread safe, intended to be called only from CUDAService destructor
+  void clear();
 
-      class Deleter {
-      public:
-        Deleter() = default;
-        Deleter(int d) : device_{d} {}
-        void operator()(cudaStream_t stream) const;
+  class Deleter {
+  public:
+    Deleter() = default;
+    Deleter(int d) : device_{d} {}
+    void operator()(cudaStream_t stream) const;
 
-      private:
-        int device_ = -1;
-      };
+  private:
+    int device_ = -1;
+  };
 
-      std::vector<edm::ReusableObjectHolder<BareStream, Deleter>> cache_;
-    };
+  std::vector<edm::ReusableObjectHolder<BareStream, Deleter>> cache_;
+};
 
-    // Gets the global instance of a StreamCache
-    // This function is thread safe
-    StreamCache& getStreamCache();
-  }  // namespace cuda
+// Gets the global instance of a StreamCache
+// This function is thread safe
+StreamCache& getStreamCache();
+}  // namespace cuda
 }  // namespace cms
 
 #endif

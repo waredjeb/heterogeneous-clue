@@ -10,11 +10,15 @@
  Description: A Token used to put data into the EDM
 
  Usage:
-    A EDPutToken is created by calls to 'produces'from an EDProducer or EDFilter.
- The EDPutToken can then be used to quickly put data into the edm::Event, edm::LuminosityBlock or edm::Run.
- 
-The templated form, EDPutTokenT<T>, is the same as EDPutToken except when used to get data the framework
- will skip checking that the type being requested matches the type specified during the 'produces'' call.
+    A EDPutToken is created by calls to 'produces'from an EDProducer or
+EDFilter.
+ The EDPutToken can then be used to quickly put data into the edm::Event,
+edm::LuminosityBlock or edm::Run.
+
+The templated form, EDPutTokenT<T>, is the same as EDPutToken except when used
+to get data the framework
+ will skip checking that the type being requested matches the type specified
+during the 'produces'' call.
 
 */
 //
@@ -28,62 +32,63 @@ The templated form, EDPutTokenT<T>, is the same as EDPutToken except when used t
 
 // forward declarations
 namespace edm {
-  template <typename T>
-  class EDPutTokenT;
-  class ProductRegistry;
+template <typename T>
+class EDPutTokenT;
+class ProductRegistry;
 
-  class EDPutToken {
-    friend class ProductRegistry;
+class EDPutToken {
+  friend class ProductRegistry;
 
-  public:
-    using value_type = unsigned int;
+public:
+  using value_type = unsigned int;
 
-    EDPutToken() : m_value{s_uninitializedValue} {}
-
-    template <typename T>
-    EDPutToken(EDPutTokenT<T> iOther) : m_value{iOther.m_value} {}
-
-    // ---------- const member functions ---------------------
-    value_type index() const { return m_value; }
-    bool isUninitialized() const { return m_value == s_uninitializedValue; }
-
-  private:
-    //for testing
-    friend class TestEDPutToken;
-
-    static const unsigned int s_uninitializedValue = 0xFFFFFFFF;
-
-    explicit EDPutToken(unsigned int iValue) : m_value(iValue) {}
-
-    // ---------- member data --------------------------------
-    value_type m_value;
-  };
+  EDPutToken() : m_value{s_uninitializedValue} {}
 
   template <typename T>
-  class EDPutTokenT {
-    friend class ProductRegistry;
-    friend class EDPutToken;
+  EDPutToken(EDPutTokenT<T> iOther)
+      : m_value{iOther.m_value} {}
 
-  public:
-    using value_type = EDPutToken::value_type;
+  // ---------- const member functions ---------------------
+  value_type index() const { return m_value; }
+  bool isUninitialized() const { return m_value == s_uninitializedValue; }
 
-    EDPutTokenT() : m_value{s_uninitializedValue} {}
+private:
+  // for testing
+  friend class TestEDPutToken;
 
-    // ---------- const member functions ---------------------
-    value_type index() const { return m_value; }
-    bool isUninitialized() const { return m_value == s_uninitializedValue; }
+  static const unsigned int s_uninitializedValue = 0xFFFFFFFF;
 
-  private:
-    //for testing
-    friend class TestEDPutToken;
+  explicit EDPutToken(unsigned int iValue) : m_value(iValue) {}
 
-    static const unsigned int s_uninitializedValue = 0xFFFFFFFF;
+  // ---------- member data --------------------------------
+  value_type m_value;
+};
 
-    explicit EDPutTokenT(unsigned int iValue) : m_value(iValue) {}
+template <typename T>
+class EDPutTokenT {
+  friend class ProductRegistry;
+  friend class EDPutToken;
 
-    // ---------- member data --------------------------------
-    value_type m_value;
-  };
+public:
+  using value_type = EDPutToken::value_type;
+
+  EDPutTokenT() : m_value{s_uninitializedValue} {}
+
+  // ---------- const member functions ---------------------
+  value_type index() const { return m_value; }
+  bool isUninitialized() const { return m_value == s_uninitializedValue; }
+
+private:
+  // for testing
+  friend class TestEDPutToken;
+
+  static const unsigned int s_uninitializedValue = 0xFFFFFFFF;
+
+  explicit EDPutTokenT(unsigned int iValue) : m_value(iValue) {}
+
+  // ---------- member data --------------------------------
+  value_type m_value;
+};
 }  // namespace edm
 
 #endif

@@ -19,24 +19,23 @@ namespace cms::cuda::allocator {
                 << "  resulting bins:\n";
       for (auto bin = minBin; bin <= maxBin; ++bin) {
         auto binSize = notcub::CachingDeviceAllocator::IntPow(binGrowth, bin);
-        if (binSize >= (1 << 30) and binSize % (1 << 30) == 0) {
+        if (binSize >= (1 << 30)and binSize % (1 << 30) == 0) {
           std::cout << "    " << std::setw(8) << (binSize >> 30) << " GB\n";
-        } else if (binSize >= (1 << 20) and binSize % (1 << 20) == 0) {
+        } else if (binSize >= (1 << 20)and binSize % (1 << 20) == 0) {
           std::cout << "    " << std::setw(8) << (binSize >> 20) << " MB\n";
-        } else if (binSize >= (1 << 10) and binSize % (1 << 10) == 0) {
+        } else if (binSize >= (1 << 10)and binSize % (1 << 10) == 0) {
           std::cout << "    " << std::setw(8) << (binSize >> 10) << " kB\n";
         } else {
           std::cout << "    " << std::setw(9) << binSize << " B\n";
         }
       }
-      std::cout << "  maximum amount of cached memory: " << (minCachedBytes() >> 20) << " MB\n";
+      std::cout << "  maximum amount of cached memory: "
+                << (minCachedBytes() >> 20) << " MB\n";
     }
 
     // the public interface is thread safe
-    static notcub::CachingHostAllocator allocator{binGrowth,
-                                                  minBin,
-                                                  maxBin,
-                                                  minCachedBytes(),
+    static notcub::CachingHostAllocator allocator{binGrowth, minBin,
+                                                  maxBin,    minCachedBytes(),
                                                   false,  // do not skip cleanup
                                                   debug};
     return allocator;

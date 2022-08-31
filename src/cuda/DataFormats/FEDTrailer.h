@@ -19,7 +19,8 @@ public:
   /// Destructor
   virtual ~FEDTrailer();
 
-  /// The length of the event fragment counted in 64-bit words including header and trailer
+  /// The length of the event fragment counted in 64-bit words including header
+  /// and trailer
   uint32_t fragmentLength() const;
 
   /// Cyclic Redundancy Code of the event fragment including header and trailer
@@ -51,8 +52,8 @@ public:
   uint32_t conscheck() const;
 
   /// Set all fields in the trailer
-  static void set(
-      unsigned char* trailer, uint32_t lenght, uint16_t crc, uint8_t evt_stat, uint8_t tts, bool moreTrailers = false);
+  static void set(unsigned char* trailer, uint32_t lenght, uint16_t crc,
+                  uint8_t evt_stat, uint8_t tts, bool moreTrailers = false);
 
   static const uint32_t length;
 

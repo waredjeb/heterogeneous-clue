@@ -14,7 +14,8 @@ FEDRawData::FEDRawData() {}
 
 FEDRawData::FEDRawData(size_t newsize) : data_(newsize) {
   if (newsize % 8 != 0)
-    throw std::runtime_error("FEDRawData::resize: " + std::to_string(newsize) + " is not a multiple of 8 bytes.");
+    throw std::runtime_error("FEDRawData::resize: " + std::to_string(newsize) +
+                             " is not a multiple of 8 bytes.");
 }
 
 FEDRawData::FEDRawData(const FEDRawData &in) : data_(in.data_) {}
@@ -30,5 +31,6 @@ void FEDRawData::resize(size_t newsize) {
   data_.resize(newsize);
 
   if (newsize % 8 != 0)
-    throw std::runtime_error("FEDRawData::resize: " + std::to_string(newsize) + " is not a multiple of 8 bytes.");
+    throw std::runtime_error("FEDRawData::resize: " + std::to_string(newsize) +
+                             " is not a multiple of 8 bytes.");
 }

@@ -3,7 +3,7 @@
 
 /** \class FEDRawDataCollection
  *  An EDCollection storing the raw data for all  FEDs in a Event.
- *  
+ *
  *  Reference: DaqPrototype/DaqPersistentData/interface/DaqFEDOpaqueData.h
  *
  *  \author N. Amapane - S. Argiro'
@@ -33,6 +33,8 @@ private:
   std::vector<FEDRawData> data_;  ///< the raw data
 };
 
-inline void swap(FEDRawDataCollection& a, FEDRawDataCollection& b) { a.swap(b); }
+inline void swap(FEDRawDataCollection& a, FEDRawDataCollection& b) {
+  a.swap(b);
+}
 
 #endif
