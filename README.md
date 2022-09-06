@@ -23,6 +23,12 @@ The application is designed to require minimal dependencies on the system. All p
 
 SYCL compiler and libraries get automatically sourced from cvmfs, so there is no need for a local install when running on a CERN machine.
 
+It is suggested to source a recent compiler from `cvmfs`, i.e.
+```
+source /cvmfs/sft.cern.ch/lcg/contrib/gcc/11.2.0/x86_64-centos7/setup.sh
+```
+in order to work with other implementations (i.e. alpaka).
+
 ## Building
 ### `sycl` and `sycltest`
 If running on a machine with Intel GPU(s), building the project only requires to run:

@@ -16,12 +16,18 @@ namespace edm {
                                  int numberOfStreams,
                                  Alternatives alternatives,
                                  std::vector<std::string> const& esproducers,
-                                 std::filesystem::path const& inputFile)
+                                 std::filesystem::path const& inputFile,
+                                 std::filesystem::path const& configFile)
       : source_(maxEvents, runForMinutes, registry_, inputFile) {
     for (auto const& name : esproducers) {
       pluginManager_.load(name);
-      auto esp = ESPluginFactory::create(name, inputFile);
-      esp->produce(eventSetup_);
+      if (name == "CLUEAlpakaClusterizerESProducer") {
+        auto esp = ESPluginFactory::create(name, configFile);
+        esp->produce(eventSetup_);
+      } else {
+        auto esp = ESPluginFactory::create(name, inputFile);
+        esp->produce(eventSetup_);
+      }
     }
 
     // normalise the total weight to the number of streams
