@@ -32,3 +32,9 @@
 /sycltest
 #dev
 /.vscode
+#config
+/config/*.csv
+!config/test_output.csv
+!config/test_without_output.csv
+#plots 
+/plots
