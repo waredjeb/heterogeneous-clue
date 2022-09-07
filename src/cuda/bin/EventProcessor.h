@@ -12,27 +12,30 @@
 #include "Source.h"
 
 namespace edm {
-class EventProcessor {
-public:
-  explicit EventProcessor(int maxEvents, int numberOfStreams,
-                          std::vector<std::string> const& path,
-                          std::vector<std::string> const& esproducers,
-                          std::filesystem::path const& datadir,
-                          bool validation);
+  class EventProcessor {
+  public:
+    explicit EventProcessor(int maxEvents,
+                            int numberOfStreams,
+                            int runForMinutes,
+                            std::vector<std::string> const& path,
+                            std::vector<std::string> const& esproducers,
+                            std::filesystem::path const& datadir,
+                            std::filesystem::path const& configFile);
 
-  int maxEvents() const { return source_.maxEvents(); }
+    int maxEvents() const { return source_.maxEvents(); }
+    int processedEvents() const { return source_.processedEvents(); }
 
-  void runToCompletion();
+    void runToCompletion();
 
-  void endJob();
+    void endJob();
 
-private:
-  edmplugin::PluginManager pluginManager_;
-  ProductRegistry registry_;
-  Source source_;
-  EventSetup eventSetup_;
-  std::vector<StreamSchedule> schedules_;
-};
+  private:
+    edmplugin::PluginManager pluginManager_;
+    ProductRegistry registry_;
+    Source source_;
+    EventSetup eventSetup_;
+    std::vector<StreamSchedule> schedules_;
+  };
 }  // namespace edm
 
 #endif

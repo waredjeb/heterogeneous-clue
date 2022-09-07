@@ -485,7 +485,7 @@ dataclean:
 	rm -fR $(DATA_BASE)/input
 	rm -fR $(DATA_BASE)/output
 	rm -fR $(DATA_BASE)/*.tar.gz
-	rm -fR $(DATA_BASE)/data_ok 
+	rm -fR $(DATA_BASE)/data_ok
 
 define CLEAN_template
 clean_$(1):
@@ -497,9 +497,9 @@ $(foreach target,$(TARGETS_ALL),$(eval $(call CLEAN_template,$(target))))
 $(DATA_DEPS): $(DATA_CLUE_TAR_GZ) | $(DATA_BASE)/md5.txt
 	cd $(DATA_BASE) && tar zxf $(DATA_CLUE_TAR_GZ)
 	cd $(DATA_BASE) && md5sum *.csv | diff -u md5.txt -
-	cd $(DATA_BASE) && mkdir input && mkdir output && cd $(DATA_BASE)/output && mkdir reference 
-	cd $(DATA_BASE) && mv ref* $(DATA_BASE)/output/reference 
-	cd $(DATA_BASE) && mv *.csv $(DATA_BASE)/input 
+	cd $(DATA_BASE) && mkdir input && mkdir output && cd $(DATA_BASE)/output && mkdir reference
+	cd $(DATA_BASE) && mv ref* $(DATA_BASE)/output/reference
+	cd $(DATA_BASE) && mv *.csv $(DATA_BASE)/input
 	touch $(DATA_DEPS)
 
 $(DATA_CLUE_TAR_GZ): | $(DATA_BASE)/url.txt

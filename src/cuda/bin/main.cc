@@ -1,10 +1,9 @@
-#include <algorithm>
-#include <cstdlib>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
-#include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -17,29 +16,24 @@
 #include "CUDACore/getCachingDeviceAllocator.h"
 #include "EventProcessor.h"
 #include "PosixClockGettime.h"
+#include "DataFormats/CLUE_config.h"
 
 namespace {
-void print_help(std::string const& name) {
-  std::cout << name
-            << ": [--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents "
-               "ME] [--data PATH] [--transfer] [--validation] "
-               "[--empty]\n\n"
-            << "Options\n"
-            << " --numberOfThreads   Number of threads to use (default 1, use "
-               "0 to use all CPU cores)\n"
-            << " --numberOfStreams   Number of concurrent events (default 0 = "
-               "numberOfThreads)\n"
-            << " --maxEvents         Number of events to process (default -1 "
-               "for all events in the input file)\n"
-            << " --data              Path to the 'data' directory (default "
-               "'data' in the directory of the executable)\n"
-            << " --transfer          Transfer results from GPU to CPU (default "
-               "is to leave them on GPU)\n"
-            << " --validation        Run (rudimentary) validation at the end "
-               "(implies --transfer)\n"
-            << " --empty             Ignore all producers (for testing only)\n"
-            << std::endl;
-}
+  void print_help(std::string const& name) {
+    std::cout
+        << name
+        << ": [--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--data PATH] [--transfer] [--validation] "
+           "[--empty]\n\n"
+        << "Options\n"
+        << " --numberOfThreads   Number of threads to use (default 1, use 0 to use all CPU cores)\n"
+        << " --numberOfStreams   Number of concurrent events (default 0 = numberOfThreads)\n"
+        << " --maxEvents         Number of events to process (default -1 for all events in the input file)\n"
+        << " --data              Path to the 'data' directory (default 'data' in the directory of the executable)\n"
+        << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
+        << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
+        << " --empty             Ignore all producers (for testing only)\n"
+        << std::endl;
+  }
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -48,12 +42,14 @@ int main(int argc, char** argv) {
   int numberOfThreads = 1;
   int numberOfStreams = 0;
   int maxEvents = -1;
-  std::filesystem::path datadir;
+  int runForMinutes = -1;
+  std::filesystem::path inputFile;
+  std::filesystem::path configFile;
   bool transfer = false;
   bool validation = false;
   bool empty = false;
   for (auto i = args.begin() + 1, e = args.end(); i != e; ++i) {
-    if (*i == "-h" or * i == "--help") {
+    if (*i == "-h" or *i == "--help") {
       print_help(args.front());
       return EXIT_SUCCESS;
     } else if (*i == "--numberOfThreads") {
@@ -65,9 +61,15 @@ int main(int argc, char** argv) {
     } else if (*i == "--maxEvents") {
       ++i;
       maxEvents = std::stoi(*i);
-    } else if (*i == "--data") {
+    } else if (*i == "--runForMinutes") {
       ++i;
-      datadir = *i;
+      runForMinutes = std::stoi(*i);
+    } else if (*i == "--inputFile") {
+      ++i;
+      inputFile = *i;
+    } else if (*i == "--configFile") {
+      ++i;
+      configFile = *i;
     } else if (*i == "--transfer") {
       transfer = true;
     } else if (*i == "--validation") {
@@ -81,18 +83,28 @@ int main(int argc, char** argv) {
       return EXIT_FAILURE;
     }
   }
+  if (maxEvents >= 0 and runForMinutes >= 0) {
+    std::cout << "Got both --maxEvents and --runForMinutes, please give only one of them" << std::endl;
+    return EXIT_FAILURE;
+  }
   if (numberOfThreads == 0) {
     numberOfThreads = tbb::info::default_concurrency();
   }
   if (numberOfStreams == 0) {
     numberOfStreams = numberOfThreads;
   }
-  if (datadir.empty()) {
-    datadir = std::filesystem::path(args[0]).parent_path() / "data";
+  if (inputFile.empty()) {
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_10k.csv";
   }
-  if (not std::filesystem::exists(datadir)) {
-    std::cout << "Data directory '" << datadir << "' does not exist"
-              << std::endl;
+  if (not std::filesystem::exists(inputFile)) {
+    std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
+    return EXIT_FAILURE;
+  }
+  if (configFile.empty()) {
+    configFile = std::filesystem::path(args[0]).parent_path() / "config" / "test_without_output.csv";
+  }
+  if (not std::filesystem::exists(configFile)) {
+    std::cout << "Config file '" << configFile << "' does not exist" << std::endl;
     return EXIT_FAILURE;
   }
   int numberOfDevices;
@@ -113,29 +125,60 @@ int main(int argc, char** argv) {
   }
 #endif
 
+  Parameters par;
+  std::ifstream iFile(configFile);
+  std::string value = "";
+  while (getline(iFile, value, ',')) {
+    par.dc = std::stof(value);
+    getline(iFile, value, ',');
+    par.rhoc = std::stof(value);
+    getline(iFile, value, ',');
+    par.outlierDeltaFactor = std::stof(value);
+    getline(iFile, value);
+    par.produceOutput = static_cast<bool>(std::stoi(value));
+  }
+  iFile.close();
+
+  std::cout << "Running CLUE algorithm with the following parameters: \n";
+  std::cout << "dc = " << par.dc << '\n';
+  std::cout << "rhoc = " << par.rhoc << '\n';
+  std::cout << "outlierDeltaFactor = " << par.outlierDeltaFactor << std::endl;
+
+  if (par.produceOutput) {
+    transfer = true;
+    std::cout << "Producing output at the end" << std::endl;
+  }
   // Initialize EventProcessor
   std::vector<std::string> edmodules;
   std::vector<std::string> esmodules;
   if (not empty) {
-    edmodules = {"TestProducer", "TestProducer3", "TestProducer2"};
-    esmodules = {"IntESProducer"};
+    edmodules = {"CLUECUDAClusterizer"};
+    esmodules = {"CLUECUDAClusterizerESProducer"};
     if (transfer) {
       // add modules for transfer
     }
+    if (validation){
+
+    }
   }
-  edm::EventProcessor processor(maxEvents, numberOfStreams,
-                                std::move(edmodules), std::move(esmodules),
-                                datadir, validation);
+  edm::EventProcessor processor(
+      maxEvents, runForMinutes, numberOfStreams, std::move(edmodules), std::move(esmodules), inputFile, configFile);
   maxEvents = processor.maxEvents();
 
-  std::cout << "Processing " << maxEvents << " events, of which "
-            << numberOfStreams << " concurrently, with " << numberOfThreads
-            << " threads." << std::endl;
+  if (runForMinutes < 0) {
+    std::cout << "Processing " << processor.maxEvents() << " events,";
+  } else {
+    std::cout << "Processing for about " << runForMinutes << " minutes,";
+  }
+  {
+    std::cout << " with " << numberOfStreams << " concurrent events (";
+    bool need_comma = false;
+    std::cout << ") and " << numberOfThreads << " threads." << std::endl;
+  }
 
-  // Initialize he TBB thread pool
-  tbb::global_control tbb_max_threads{
-      tbb::global_control::max_allowed_parallelism,
-      static_cast<std::size_t>(numberOfThreads)};
+  // Initialize the TBB thread pool
+  tbb::global_control tbb_max_threads{tbb::global_control::max_allowed_parallelism,
+                                      static_cast<std::size_t>(numberOfThreads)};
 
   // Run work
   auto cpu_start = PosixClockGettime<CLOCK_PROCESS_CPUTIME_ID>::now();
@@ -143,18 +186,15 @@ int main(int argc, char** argv) {
   try {
     tbb::task_arena arena(numberOfThreads);
     arena.execute([&] { processor.runToCompletion(); });
-  }
-  catch (std::runtime_error& e) {
+  } catch (std::runtime_error& e) {
     std::cout << "\n----------\nCaught std::runtime_error" << std::endl;
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;
-  }
-  catch (std::exception& e) {
+  } catch (std::exception& e) {
     std::cout << "\n----------\nCaught std::exception" << std::endl;
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;
-  }
-  catch (...) {
+  } catch (...) {
     std::cout << "\n----------\nCaught exception of unknown type" << std::endl;
     return EXIT_FAILURE;
   }
@@ -164,38 +204,27 @@ int main(int argc, char** argv) {
   // Run endJob
   try {
     processor.endJob();
-  }
-  catch (std::runtime_error& e) {
+  } catch (std::runtime_error& e) {
     std::cout << "\n----------\nCaught std::runtime_error" << std::endl;
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;
-  }
-  catch (std::exception& e) {
+  } catch (std::exception& e) {
     std::cout << "\n----------\nCaught std::exception" << std::endl;
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;
-  }
-  catch (...) {
+  } catch (...) {
     std::cout << "\n----------\nCaught exception of unknown type" << std::endl;
     return EXIT_FAILURE;
   }
 
   // Work done, report timing
   auto diff = stop - start;
-  auto time =
-      static_cast<double>(
-          std::chrono::duration_cast<std::chrono::microseconds>(diff).count()) /
-      1e6;
+  auto time = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(diff).count()) / 1e6;
   auto cpu_diff = cpu_stop - cpu_start;
-  auto cpu =
-      static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
-          cpu_diff).count()) /
-      1e6;
-  std::cout << "Processed " << maxEvents << " events in " << std::scientific
-            << time << " seconds, throughput " << std::defaultfloat
-            << (maxEvents / time)
-            << " events/s, CPU usage per thread: " << std::fixed
-            << std::setprecision(1) << (cpu / time / numberOfThreads * 100)
-            << "%" << std::endl;
+  auto cpu = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(cpu_diff).count()) / 1e6;
+  maxEvents = processor.processedEvents();
+  std::cout << "Processed " << maxEvents << " events in " << std::scientific << time << " seconds, throughput "
+            << std::defaultfloat << (maxEvents / time) << " events/s, CPU usage per thread: " << std::fixed
+            << std::setprecision(1) << (cpu / time / numberOfThreads * 100) << "%" << std::endl;
   return EXIT_SUCCESS;
 }

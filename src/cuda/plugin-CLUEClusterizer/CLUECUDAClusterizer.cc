@@ -1,38 +1,44 @@
-
-#include <fstream>
-#include <memory>
-#include "Framework/ESProducer.h"
+#include "Framework/Event.h"
 #include "Framework/EventSetup.h"
-#include "Framework/ESPluginFactory.h"
-#include "DataFormats/CLUE_config.h"
+#include "Framework/PluginFactory.h"
+#include "Framework/EDProducer.h"
 
-class CLUECUDAClusterizerESProducer : public edm::ESProducer {
+#include "CUDACore/ScopedContext.h"
+#include "CUDACore/Product.h"
+
+#include "DataFormats/PointsCloud.h"
+#include "DataFormats/CLUE_config.h"
+#include "CUDADataFormats/PointsCloudCUDA.h"
+#include "CLUEAlgoCUDA.h"
+
+
+class CLUECUDAClusterizer : public edm::EDProducer {
 public:
-  CLUECUDAClusterizerESProducer(std::filesystem::path const& config_file)
-      : data_{config_file} {}
-  void produce(edm::EventSetup& eventSetup);
+  explicit CLUECUDAClusterizer(edm::ProductRegistry& reg);
+  ~CLUECUDAClusterizer() override = default;
 
 private:
-  std::filesystem::path data_;
+  void produce(edm::Event& iEvent, const edm::EventSetup& iSetup) override;
+
+  edm::EDGetTokenT<PointsCloud> pointsCloudToken_;
+  edm::EDPutTokenT<cms::cuda::Product<PointsCloudCUDA>> clusterToken_;
 };
 
-void CLUECUDAClusterizerESProducer::produce(edm::EventSetup& eventSetup) {
-  Parameters par;
-  std::ifstream iFile(data_);
-  std::string value = "";
-  while (getline(iFile, value, ',')) {
-    par.dc = std::stof(value);
-    getline(iFile, value, ',');
-    par.rhoc = std::stof(value);
-    getline(iFile, value, ',');
-    par.outlierDeltaFactor = std::stof(value);
-    getline(iFile, value);
-    par.produceOutput = static_cast<bool>(std::stoi(value));
-  }
-  iFile.close();
+CLUECUDAClusterizer::CLUECUDAClusterizer(edm::ProductRegistry& reg)
+    : pointsCloudToken_{reg.consumes<PointsCloud>()},
+      clusterToken_{reg.produces<cms::cuda::Product<PointsCloudCUDA>>()} {}
 
-  auto parameters = std::make_unique<Parameters>(par);
-  eventSetup.put(std::move(parameters));
+void CLUECUDAClusterizer::produce(edm::Event& event, const edm::EventSetup& eventSetup) {
+  std::cout << "CLUECUDAClusterizer produce " << std::endl;
+  auto const& pc = event.get(pointsCloudToken_);
+  cms::cuda::ScopedContextProduce ctx(event.streamID());
+  Parameters const& par = eventSetup.get<Parameters>();
+  auto stream = ctx.stream();
+  CLUEAlgoCUDA clueAlgo(par.dc, par.rhoc, par.outlierDeltaFactor, stream, pc.n);
+  clueAlgo.makeClusters(pc);
+
+  ctx.emplace(event, clusterToken_, std::move(clueAlgo.d_points));
+  std::cout << "Emplaced " << std::endl;
 }
 
-DEFINE_FWK_EVENTSETUP_MODULE(CLUECUDAClusterizerESProducer);
+DEFINE_FWK_MODULE(CLUECUDAClusterizer);
