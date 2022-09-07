@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -136,12 +137,12 @@ int main(int argc, char** argv) {
     edmodules = {"CLUESerialClusterizer"};
     esmodules = {"CLUESerialClusterizerESProducer"};
     if (par.produceOutput) {
-      esmodules.emplace_back("CLUEOutputESProducer");
-      edmodules.emplace_back("CLUEOutputProducer");
+      //   esmodules.emplace_back("CLUEOutputESProducer");
+      //   edmodules.emplace_back("CLUEOutputProducer");
     }
     if (validation) {
-      esmodules.emplace_back("CLUEValidatorESProducer");
-      edmodules.emplace_back("CLUEValidator");
+      //   esmodules.emplace_back("CLUEValidatorESProducer");
+      //   edmodules.emplace_back("CLUEValidator");
     }
   }
   edm::EventProcessor processor(

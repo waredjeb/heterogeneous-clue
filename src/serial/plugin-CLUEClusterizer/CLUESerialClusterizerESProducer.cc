@@ -5,16 +5,16 @@
 #include "Framework/ESPluginFactory.h"
 #include "DataFormats/CLUE_config.h"
 
-class CLUEClusterizerESProducer : public edm::ESProducer {
+class CLUESerialClusterizerESProducer : public edm::ESProducer {
 public:
-  CLUEClusterizerESProducer(std::filesystem::path const& config_file) : data_{config_file} {}
+  CLUESerialClusterizerESProducer(std::filesystem::path const& config_file) : data_{config_file} {}
   void produce(edm::EventSetup& eventSetup);
 
 private:
   std::filesystem::path data_;
 };
 
-void CLUEClusterizerESProducer::produce(edm::EventSetup& eventSetup) {
+void CLUESerialClusterizerESProducer::produce(edm::EventSetup& eventSetup) {
   Parameters par;
   std::ifstream iFile(data_);
   std::string value = "";
@@ -33,4 +33,4 @@ void CLUEClusterizerESProducer::produce(edm::EventSetup& eventSetup) {
   eventSetup.put(std::move(parameters));
 }
 
-DEFINE_FWK_EVENTSETUP_MODULE(CLUEClusterizerESProducer);
+DEFINE_FWK_EVENTSETUP_MODULE(CLUESerialClusterizerESProducer);

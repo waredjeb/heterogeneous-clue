@@ -8,9 +8,9 @@
 
 #include "DataFormats/LayerTilesConstants.h"
 
-class LayerTiles {
+class LayerTilesSerial {
 public:
-  LayerTiles() { layerTiles_.resize(LayerTilesConstants::nColumns * LayerTilesConstants::nRows); }
+  LayerTilesSerial() { layerTiles_.resize(LayerTilesConstants::nColumns * LayerTilesConstants::nRows); }
 
   void fill(const std::vector<float>& x, const std::vector<float>& y) {
     auto cellsSize = x.size();
