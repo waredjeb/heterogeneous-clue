@@ -18,7 +18,6 @@ void CLUECUDAClusterizerESProducer::produce(edm::EventSetup& eventSetup) {
   Parameters par;
   std::ifstream iFile(data_);
   std::string value = "";
-	std::cout << "CLUECUDAClusterizerESProducer produce " << std::endl;
   while (getline(iFile, value, ',')) {
     par.dc = std::stof(value);
     getline(iFile, value, ',');
@@ -29,7 +28,6 @@ void CLUECUDAClusterizerESProducer::produce(edm::EventSetup& eventSetup) {
     par.produceOutput = static_cast<bool>(std::stoi(value));
   }
   iFile.close();
-  std::cout << " CLOSE " << std::endl;
   auto parameters = std::make_unique<Parameters>(par);
   eventSetup.put(std::move(parameters));
 }

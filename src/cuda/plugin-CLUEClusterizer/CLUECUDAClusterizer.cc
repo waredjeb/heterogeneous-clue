@@ -29,7 +29,6 @@ CLUECUDAClusterizer::CLUECUDAClusterizer(edm::ProductRegistry& reg)
       clusterToken_{reg.produces<cms::cuda::Product<PointsCloudCUDA>>()} {}
 
 void CLUECUDAClusterizer::produce(edm::Event& event, const edm::EventSetup& eventSetup) {
-  std::cout << "CLUECUDAClusterizer produce " << std::endl;
   auto const& pc = event.get(pointsCloudToken_);
   cms::cuda::ScopedContextProduce ctx(event.streamID());
   Parameters const& par = eventSetup.get<Parameters>();
@@ -38,7 +37,6 @@ void CLUECUDAClusterizer::produce(edm::Event& event, const edm::EventSetup& even
   clueAlgo.makeClusters(pc);
 
   ctx.emplace(event, clusterToken_, std::move(clueAlgo.d_points));
-  std::cout << "Emplaced " << std::endl;
 }
 
 DEFINE_FWK_MODULE(CLUECUDAClusterizer);

@@ -6,8 +6,8 @@
 
 namespace edm {
   EventProcessor::EventProcessor(int maxEvents,
-                                 int numberOfStreams,
                                  int runForMinutes,
+                                 int numberOfStreams,
                                  std::vector<std::string> const& path,
                                  std::vector<std::string> const& esproducers,
                                  std::filesystem::path const& inputFile,
@@ -27,10 +27,7 @@ namespace edm {
     //schedules_.reserve(numberOfStreams);
     for (int i = 0; i < numberOfStreams; ++i) {
       schedules_.emplace_back(registry_, pluginManager_, &source_, &eventSetup_, i, path);
-    std::cout << __LINE__ << std::endl;
     }
-    std::cout << __LINE__ << std::endl;
-
   }
 
   void EventProcessor::runToCompletion() {
