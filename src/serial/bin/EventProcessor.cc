@@ -17,7 +17,7 @@ namespace edm {
       : source_(maxEvents, runForMinutes, registry_, inputFile) {
     for (auto const& name : esproducers) {
       pluginManager_.load(name);
-      if (name == "CLUEAlpakaClusterizerESProducer") {
+      if (name == "CLUESerialClusterizerESProducer") {
         auto esp = ESPluginFactory::create(name, configFile);
         esp->produce(eventSetup_);
       } else {
