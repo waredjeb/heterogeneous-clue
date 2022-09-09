@@ -6,6 +6,17 @@
 struct PointsCloud {
   PointsCloud() = default;
 
+  std::vector<float> x;
+  std::vector<float> y;
+  std::vector<int> layer;
+  std::vector<float> weight;
+
+  unsigned int n;
+};
+
+struct PointsCloudSerial {
+  PointsCloudSerial() = default;
+
   void outResize(unsigned int const& nPoints) {
     rho.resize(nPoints);
     delta.resize(nPoints);

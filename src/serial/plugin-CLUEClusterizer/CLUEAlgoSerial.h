@@ -16,7 +16,9 @@ public:
 
   ~CLUEAlgoSerial() = default;
 
-  void makeClusters(PointsCloud &host_pc);
+  void makeClusters(PointsCloud const &host_pc);
+
+  PointsCloudSerial d_points;
 
   std::array<LayerTilesSerial, NLAYERS> hist_;
 
@@ -25,7 +27,7 @@ private:
   float rhoc_;
   float outlierDeltaFactor_;
 
-  void setup(PointsCloud &host_pc);
+  void setup(PointsCloud const &host_pc);
 };
 
 #endif
