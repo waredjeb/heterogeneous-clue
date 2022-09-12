@@ -35,7 +35,6 @@ void CLUECUDAClusterizer::produce(edm::Event& event, const edm::EventSetup& even
   auto stream = ctx.stream();
   CLUEAlgoCUDA clueAlgo(par.dc, par.rhoc, par.outlierDeltaFactor, stream, pc.n);
   clueAlgo.makeClusters(pc);
-
   ctx.emplace(event, clusterToken_, std::move(clueAlgo.d_points));
 }
 

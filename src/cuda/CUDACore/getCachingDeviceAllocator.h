@@ -17,9 +17,9 @@ namespace cms::cuda::allocator {
     Asynchronous = 1,
     Caching = 2
   };
-#ifndef CUDATEST_DISABLE_CACHING_ALLOCATOR
+#ifndef CUDA_DISABLE_CACHING_ALLOCATOR
   constexpr Policy policy = Policy::Caching;
-#elif CUDA_VERSION >= 11020 && !defined CUDATEST_DISABLE_ASYNC_ALLOCATOR
+#elif CUDA_VERSION >= 11020 && !defined CUDA_DISABLE_ASYNC_ALLOCATOR
   constexpr Policy policy = Policy::Asynchronous;
 #else
   constexpr Policy policy = Policy::Synchronous;

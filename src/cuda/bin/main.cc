@@ -156,6 +156,8 @@ int main(int argc, char** argv) {
     esmodules = {"CLUECUDAClusterizerESProducer"};
     if (transfer) {
       // add modules for transfer
+    edmodules.emplace_back("CLUEOutputProducer");
+    esmodules.emplace_back("CLUEOutputESProducer");
     }
     if (validation){
 
