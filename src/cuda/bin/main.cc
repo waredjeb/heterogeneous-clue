@@ -159,8 +159,9 @@ int main(int argc, char** argv) {
     edmodules.emplace_back("CLUEOutputProducer");
     esmodules.emplace_back("CLUEOutputESProducer");
     }
-    if (validation){
-
+    if (validation) {
+      esmodules.emplace_back("CLUEValidatorESProducer");
+      edmodules.emplace_back("CLUEValidator");
     }
   }
   edm::EventProcessor processor(
