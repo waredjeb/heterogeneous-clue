@@ -36,6 +36,7 @@ namespace edm {
       maxEvents_ = 10;
     }
   }
+
   void Source::startProcessing() {
     if (runForMinutes_ >= 0) {
       startTime_ = std::chrono::steady_clock::now();

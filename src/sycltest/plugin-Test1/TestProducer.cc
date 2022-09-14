@@ -29,6 +29,7 @@ TestProducer::TestProducer(edm::ProductRegistry& reg)
 
 void TestProducer::produce(edm::Event& event, edm::EventSetup const& eventSetup) {
   auto const value = event.get(rawGetToken_);
+  std::cout << "Number of points: " << value.n << '\n';
   std::cout << "TestProducer  Event " << event.eventID() << " stream " << event.streamID() << " ES int "
             << eventSetup.get<int>() << std::endl;
 

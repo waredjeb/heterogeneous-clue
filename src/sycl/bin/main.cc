@@ -1,9 +1,8 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
-#include <stdexcept>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -11,55 +10,32 @@
 #include <tbb/info.h>
 #include <tbb/task_arena.h>
 
+#include <CL/sycl.hpp>
+
 #include "DataFormats/CLUE_config.h"
-#include "AlpakaCore/alpakaConfig.h"
-#include "AlpakaCore/backend.h"
-#include "AlpakaCore/initialise.h"
+#include "SYCLCore/chooseDevice.h"
 #include "EventProcessor.h"
 #include "PosixClockGettime.h"
 
 namespace {
   void print_help(std::string const& name) {
     std::cout
-        << name << ": "
-#ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
-        << "[--serial] "
-#endif
-#ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_PRESENT
-        << "[--tbb] "
-#endif
-#ifdef ALPAKA_ACC_GPU_CUDA_PRESENT
-        << "[--cuda] "
-#endif
-#ifdef ALPAKA_ACC_GPU_HIP_PRESENT
-        << "[--hip] "
-#endif
-        << "[--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--data PATH] [--inputFile "
-           "PATH] [--configFile] [--transfer] [--validation] "
+        << name
+        << ": [--device DEV] [--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--inputFile "
+           "PATH] [--configFile PATH] [--transfer] [--validation] "
            "[--empty]\n\n"
         << "Options\n"
-#ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
-        << " --serial            Use CPU Serial backend\n"
-#endif
-#ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_PRESENT
-        << " --tbb               Use CPU TBB backend\n"
-#endif
-#ifdef ALPAKA_ACC_GPU_CUDA_PRESENT
-        << " --cuda              Use CUDA backend\n"
-#endif
-#ifdef ALPAKA_ACC_GPU_HIP_PRESENT
-        << " --hip               Use ROCm/HIP backend\n"
-#endif
+        << " --device            Specifies the device which should run the code\n"
         << " --numberOfThreads   Number of threads to use (default 1, use 0 to use all CPU cores)\n"
         << " --numberOfStreams   Number of concurrent events (default 0 = numberOfThreads)\n"
         << " --maxEvents         Number of events to process (default -1 for all events in the input file)\n"
         << " --runForMinutes     Continue processing the set of 1000 events until this many minutes have passed "
            "(default -1 for disabled; conflicts with --maxEvents)\n"
         << " --inputFile         Path to the input file to cluster with CLUE (default is set to "
-           "data/input/toyDetector_1k.csv)'\n"
+           "'data/input/toyDetector_1k.csv')\n"
         << " --configFile        Path to the config file with the parameters (dc, rhoc, outlierDeltaFactor, "
-           "produceOutput) to run CLUE (implies --transfer, default 'config/test_without_output.csv' in the directory "
-           "of the executable)\n"
+           "produceOutput) to run CLUE (default 'config/test_without_output.csv' in the directory "
+           "of the exectuable)\n"
         << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
         << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
         << " --empty             Ignore all producers (for testing only)\n"
@@ -67,61 +43,10 @@ namespace {
   }
 }  // namespace
 
-bool getOptionalArgument(std::vector<std::string> const& args, std::vector<std::string>::iterator& i, int& value) {
-  auto it = i;
-  ++it;
-  if (it == args.end()) {
-    return false;
-  }
-  try {
-    value = std::stoi(*it);
-    ++i;
-    return true;
-  } catch (...) {
-    return false;
-  }
-}
-
-bool getOptionalArgument(std::vector<std::string> const& args, std::vector<std::string>::iterator& i, float& value) {
-  auto it = i;
-  ++it;
-  if (it == args.end()) {
-    return false;
-  }
-  try {
-    value = std::stof(*it);
-    ++i;
-    return true;
-  } catch (...) {
-    return false;
-  }
-}
-
-bool getOptionalArgument(std::vector<std::string> const& args,
-                         std::vector<std::string>::iterator& i,
-                         std::filesystem::path& value) {
-  auto it = i;
-  ++it;
-  if (it == args.end()) {
-    return false;
-  }
-  value = *it;
-  ++i;
-  return true;
-}
-
-template <typename T>
-void getArgument(std::vector<std::string> const& args, std::vector<std::string>::iterator& i, T& value) {
-  if (not getOptionalArgument(args, i, value)) {
-    std::cerr << "error: " << *i << " expects an argument" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-}
-
-int main(int argc, char** argv) {
+int main(int argc, char** argv) try {
   // Parse command line arguments
+  setenv("SYCL_DEVICE_FILTER", "cpu,gpu", true);
   std::vector<std::string> args(argv, argv + argc);
-  std::unordered_map<Backend, float> backends;
   int numberOfThreads = 1;
   int numberOfStreams = 0;
   int maxEvents = -1;
@@ -135,43 +60,28 @@ int main(int argc, char** argv) {
     if (*i == "-h" or *i == "--help") {
       print_help(args.front());
       return EXIT_SUCCESS;
-#ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
-    } else if (*i == "--serial") {
-      float weight = 1.;
-      getOptionalArgument(args, i, weight);
-      backends.insert_or_assign(Backend::SERIAL, weight);
-#endif
-#ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_PRESENT
-    } else if (*i == "--tbb") {
-      float weight = 1.;
-      getOptionalArgument(args, i, weight);
-      backends.insert_or_assign(Backend::TBB, weight);
-#endif
-#ifdef ALPAKA_ACC_GPU_CUDA_PRESENT
-    } else if (*i == "--cuda") {
-      float weight = 1.;
-      getOptionalArgument(args, i, weight);
-      backends.insert_or_assign(Backend::CUDA, weight);
-#endif
-#ifdef ALPAKA_ACC_GPU_HIP_PRESENT
-    } else if (*i == "--hip") {
-      float weight = 1.;
-      getOptionalArgument(args, i, weight);
-      backends.insert_or_assign(Backend::HIP, weight);
-#endif
+    } else if (*i == "--device") {
+      ++i;
+      std::string device = *i;
+      setenv("SYCL_DEVICE_FILTER", device.c_str(), true);
     } else if (*i == "--numberOfThreads") {
-      getArgument(args, i, numberOfThreads);
+      ++i;
+      numberOfThreads = std::stoi(*i);
     } else if (*i == "--numberOfStreams") {
-      getArgument(args, i, numberOfStreams);
+      ++i;
+      numberOfStreams = std::stoi(*i);
     } else if (*i == "--maxEvents") {
-      getArgument(args, i, maxEvents);
+      ++i;
+      maxEvents = std::stoi(*i);
     } else if (*i == "--runForMinutes") {
-      getArgument(args, i, runForMinutes);
+      ++i;
+      runForMinutes = std::stoi(*i);
     } else if (*i == "--inputFile") {
-      getArgument(args, i, inputFile);
+      ++i;
+      inputFile = *i;
     } else if (*i == "--configFile") {
-      getArgument(args, i, configFile);
-      transfer = true;
+      ++i;
+      configFile = *i;
     } else if (*i == "--transfer") {
       transfer = true;
     } else if (*i == "--validation") {
@@ -196,7 +106,7 @@ int main(int argc, char** argv) {
     numberOfStreams = numberOfThreads;
   }
   if (inputFile.empty()) {
-    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_10k.csv";
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_1k.csv";
   }
   if (not std::filesystem::exists(inputFile)) {
     std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
@@ -209,27 +119,9 @@ int main(int argc, char** argv) {
     std::cout << "Config file '" << configFile << "' does not exist" << std::endl;
     return EXIT_FAILURE;
   }
-  // Initialiase the selected backends
-#ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
-  if (backends.find(Backend::SERIAL) != backends.end()) {
-    cms::alpakatools::initialise<alpaka_serial_sync::Platform>();
-  }
-#endif
-#ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_PRESENT
-  if (backends.find(Backend::TBB) != backends.end()) {
-    cms::alpakatools::initialise<alpaka_tbb_async::Platform>();
-  }
-#endif
-#ifdef ALPAKA_ACC_GPU_CUDA_PRESENT
-  if (backends.find(Backend::CUDA) != backends.end()) {
-    cms::alpakatools::initialise<alpaka_cuda_async::Platform>();
-  }
-#endif
-#ifdef ALPAKA_ACC_GPU_HIP_PRESENT
-  if (backends.find(Backend::HIP) != backends.end()) {
-    cms::alpakatools::initialise<alpaka_rocm_async::Platform>();
-  }
-#endif
+
+  // Initialise the SYCL runtime
+  cms::sycltools::enumerateDevices(true);
 
   Parameters par;
   std::ifstream iFile(configFile);
@@ -255,50 +147,32 @@ int main(int argc, char** argv) {
     std::cout << "Producing output at the end" << std::endl;
   }
 
-  // Initialize EventProcessor
+  // Initialise the EventProcessor
+  std::vector<std::string> edmodules;
   std::vector<std::string> esmodules;
-  edm::Alternatives alternatives;
   if (not empty) {
-    // host-only ESModules
-    esmodules = {"CLUEAlpakaClusterizerESProducer"};
-    for (auto const& [backend, weight] : backends) {
-      std::string prefix = "alpaka_" + name(backend) + "::";
-      // "portable" EDModules
-      std::vector<std::string> edmodules;
-      edmodules.emplace_back(prefix + "CLUEAlpakaClusterizer");
-      if (transfer) {
-        esmodules.emplace_back("CLUEOutputESProducer");
-        edmodules.emplace_back(prefix + "CLUEOutputProducer");
-      }
-      if (validation) {
-        esmodules.emplace_back("CLUEValidatorESProducer");
-        edmodules.emplace_back(prefix + "CLUEValidator");
-      }
-      alternatives.emplace_back(backend, weight, std::move(edmodules));
+    edmodules = {"CLUESYCLClusterizer"};
+    esmodules = {"CLUESYCLClusterizerESProducer"};
+    if (transfer) {
+      esmodules.emplace_back("CLUEOutputESProducer");
+      edmodules.emplace_back("CLUEOutputProducer");
+    }
+    if (validation) {
+      esmodules.emplace_back("CLUEValidatorESProducer");
+      edmodules.emplace_back("CLUEValidator");
     }
   }
   edm::EventProcessor processor(
-      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), inputFile, configFile);
-
+      maxEvents, runForMinutes, numberOfStreams, std::move(edmodules), std::move(esmodules), inputFile, configFile);
   if (runForMinutes < 0) {
-    std::cout << "Processing " << processor.maxEvents() << " events,";
+    std::cout << "Processing " << processor.maxEvents() << " events, of which " << numberOfStreams
+              << " concurrently, with " << numberOfThreads << " threads." << std::endl;
   } else {
-    std::cout << "Processing for about " << runForMinutes << " minutes,";
-  }
-  {
-    std::cout << " with " << numberOfStreams << " concurrent events (";
-    bool need_comma = false;
-    for (auto const& [backend, streams] : processor.backends()) {
-      if (need_comma) {
-        std::cout << ", ";
-      }
-      std::cout << streams << " on " << backend;
-      need_comma = true;
-    }
-    std::cout << ") and " << numberOfThreads << " threads." << std::endl;
+    std::cout << "Processing for about " << runForMinutes << " minutes with " << numberOfStreams
+              << " concurrent events and " << numberOfThreads << " threads." << std::endl;
   }
 
-  // Initialize the TBB thread pool
+  // Initialize he TBB thread pool
   tbb::global_control tbb_max_threads{tbb::global_control::max_allowed_parallelism,
                                       static_cast<std::size_t>(numberOfThreads)};
 
@@ -348,5 +222,9 @@ int main(int argc, char** argv) {
   std::cout << "Processed " << maxEvents << " events in " << std::scientific << time << " seconds, throughput "
             << std::defaultfloat << (maxEvents / time) << " events/s, CPU usage per thread: " << std::fixed
             << std::setprecision(1) << (cpu / time / numberOfThreads * 100) << "%" << std::endl;
+  unsetenv("SYCL_DEVICE_FILTER");
   return EXIT_SUCCESS;
+} catch (sycl::exception const& exc) {
+  std::cerr << exc.what() << "Exception caught at file:" << __FILE__ << ", line:" << __LINE__ << std::endl;
+  std::exit(1);
 }
