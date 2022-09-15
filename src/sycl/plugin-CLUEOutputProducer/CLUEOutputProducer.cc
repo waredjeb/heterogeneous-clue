@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <fstream>
 
-#include "DataFormats/FEDRawDataCollection.h"
 #include "Framework/EDProducer.h"
 #include "Framework/Event.h"
 #include "Framework/EventSetup.h"

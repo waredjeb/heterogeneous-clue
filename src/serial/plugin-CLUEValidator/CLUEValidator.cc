@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <string>
 
-#include "DataFormats/FEDRawDataCollection.h"
 #include "DataFormats/PointsCloud.h"
 #include "DataFormats/CLUE_config.h"
 
