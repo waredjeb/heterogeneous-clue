@@ -93,7 +93,7 @@ int main(int argc, char** argv) try {
     numberOfStreams = numberOfThreads;
   }
   if (inputFile.empty()) {
-    inputFile = std::filesystem::path(args[0]).parent_path() / "data" / "input" / "toyDetector_1k.csv";
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data" / "input" / "toyDetector_1k.bin";
   }
   if (not std::filesystem::exists(inputFile)) {
     std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
@@ -117,7 +117,7 @@ int main(int argc, char** argv) try {
     }
   }
   edm::EventProcessor processor(
-      maxEvents, runForMinutes, numberOfStreams, std::move(edmodules), std::move(esmodules), inputFile);
+      maxEvents, runForMinutes, numberOfStreams, std::move(edmodules), std::move(esmodules), inputFile, validation);
 
   if (runForMinutes < 0) {
     std::cout << "Processing " << processor.maxEvents() << " events, of which " << numberOfStreams

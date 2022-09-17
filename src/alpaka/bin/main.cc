@@ -20,50 +20,49 @@
 
 namespace {
   void print_help(std::string const& name) {
-    std::cout
-        << name << ": "
+    std::cout << name << ": "
 #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
-        << "[--serial] "
+              << "[--serial] "
 #endif
 #ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_PRESENT
-        << "[--tbb] "
+              << "[--tbb] "
 #endif
 #ifdef ALPAKA_ACC_GPU_CUDA_PRESENT
-        << "[--cuda] "
+              << "[--cuda] "
 #endif
 #ifdef ALPAKA_ACC_GPU_HIP_PRESENT
-        << "[--hip] "
+              << "[--hip] "
 #endif
-        << "[--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--inputFile "
-           "PATH] [--configFile] [--transfer] [--validation] "
-           "[--empty]\n\n"
-        << "Options\n"
+              << "[--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--inputFile "
+                 "PATH] [--configFile] [--transfer] [--validation] "
+                 "[--empty]\n\n"
+              << "Options\n"
 #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_PRESENT
-        << " --serial            Use CPU Serial backend\n"
+              << " --serial            Use CPU Serial backend\n"
 #endif
 #ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_PRESENT
-        << " --tbb               Use CPU TBB backend\n"
+              << " --tbb               Use CPU TBB backend\n"
 #endif
 #ifdef ALPAKA_ACC_GPU_CUDA_PRESENT
-        << " --cuda              Use CUDA backend\n"
+              << " --cuda              Use CUDA backend\n"
 #endif
 #ifdef ALPAKA_ACC_GPU_HIP_PRESENT
-        << " --hip               Use ROCm/HIP backend\n"
+              << " --hip               Use ROCm/HIP backend\n"
 #endif
-        << " --numberOfThreads   Number of threads to use (default 1, use 0 to use all CPU cores)\n"
-        << " --numberOfStreams   Number of concurrent events (default 0 = numberOfThreads)\n"
-        << " --maxEvents         Number of events to process (default -1 for all events in the input file)\n"
-        << " --runForMinutes     Continue processing the set of 1000 events until this many minutes have passed "
-           "(default -1 for disabled; conflicts with --maxEvents)\n"
-        << " --inputFile         Path to the input file to cluster with CLUE (default is set to "
-           "data/input/toyDetector_1k.csv)'\n"
-        << " --configFile        Path to the config file with the parameters (dc, rhoc, outlierDeltaFactor, "
-           "produceOutput) to run CLUE (implies --transfer, default 'config/test_without_output.csv' in the directory "
-           "of the executable)\n"
-        << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
-        << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
-        << " --empty             Ignore all producers (for testing only)\n"
-        << std::endl;
+              << " --numberOfThreads   Number of threads to use (default 1, use 0 to use all CPU cores)\n"
+              << " --numberOfStreams   Number of concurrent events (default 0 = numberOfThreads)\n"
+              << " --maxEvents         Number of events to process (default -1 for all events in the input file)\n"
+              << " --runForMinutes     Continue processing the set of 1000 events until this many minutes have passed "
+                 "(default -1 for disabled; conflicts with --maxEvents)\n"
+              << " --inputFile         Path to the input file to cluster with CLUE (default is set to "
+                 "data/input/raw.bin)'\n"
+              << " --configFile        Path to the config file with the parameters (dc, rhoc, outlierDeltaFactor, "
+                 "produceOutput) to run CLUE (implies --transfer, default 'config/hgcal_config.csv' in the directory "
+                 "of the executable)\n"
+              << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
+              << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
+              << " --empty             Ignore all producers (for testing only)\n"
+              << std::endl;
   }
 }  // namespace
 
@@ -177,6 +176,10 @@ int main(int argc, char** argv) {
     } else if (*i == "--validation") {
       transfer = true;
       validation = true;
+      std::string fileName(inputFile);
+      if (fileName.find("toyDetector") != std::string::npos) {
+        configFile = std::filesystem::path(args[0]).parent_path() / "config" / "toyDetector_config.csv";
+      }
     } else if (*i == "--empty") {
       empty = true;
     } else {
@@ -196,14 +199,14 @@ int main(int argc, char** argv) {
     numberOfStreams = numberOfThreads;
   }
   if (inputFile.empty()) {
-    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_10k.csv";
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/raw.bin";
   }
   if (not std::filesystem::exists(inputFile)) {
     std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
     return EXIT_FAILURE;
   }
   if (configFile.empty()) {
-    configFile = std::filesystem::path(args[0]).parent_path() / "config" / "test_without_output.csv";
+    configFile = std::filesystem::path(args[0]).parent_path() / "config" / "hgcal_config.csv";
   }
   if (not std::filesystem::exists(configFile)) {
     std::cout << "Config file '" << configFile << "' does not exist" << std::endl;
@@ -277,8 +280,14 @@ int main(int argc, char** argv) {
       alternatives.emplace_back(backend, weight, std::move(edmodules));
     }
   }
-  edm::EventProcessor processor(
-      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), inputFile, configFile);
+  edm::EventProcessor processor(maxEvents,
+                                runForMinutes,
+                                numberOfStreams,
+                                std::move(alternatives),
+                                std::move(esmodules),
+                                inputFile,
+                                configFile,
+                                validation);
 
   if (runForMinutes < 0) {
     std::cout << "Processing " << processor.maxEvents() << " events,";

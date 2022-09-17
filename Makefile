@@ -482,6 +482,8 @@ distclean: | clean
 	rm -fR $(EXTERNAL_BASE) .original_env
 
 dataclean:
+	rm -fR  $(DATA_BASE)/*.csv
+	rm -fR  $(DATA_BASE)/*.bin
 	rm -fR $(DATA_BASE)/input
 	rm -fR $(DATA_BASE)/output
 	rm -fR $(DATA_BASE)/*.tar.gz
@@ -496,10 +498,10 @@ $(foreach target,$(TARGETS_ALL),$(eval $(call CLEAN_template,$(target))))
 # Data rules
 $(DATA_DEPS): $(DATA_CLUE_TAR_GZ) | $(DATA_BASE)/md5.txt
 	cd $(DATA_BASE) && tar zxf $(DATA_CLUE_TAR_GZ)
-	cd $(DATA_BASE) && md5sum *.csv | diff -u md5.txt -
+	cd $(DATA_BASE) && md5sum *csv *.bin | diff -u md5.txt -
 	cd $(DATA_BASE) && mkdir input && mkdir output && cd $(DATA_BASE)/output && mkdir reference 
 	cd $(DATA_BASE) && mv ref* $(DATA_BASE)/output/reference 
-	cd $(DATA_BASE) && mv *.csv $(DATA_BASE)/input 
+	cd $(DATA_BASE) && mv *.bin $(DATA_BASE)/input 
 	touch $(DATA_DEPS)
 
 $(DATA_CLUE_TAR_GZ): | $(DATA_BASE)/url.txt

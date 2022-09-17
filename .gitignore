@@ -9,8 +9,7 @@
 /env.sh
 # data
 /data/*.tar.gz
-/data/*.bin
-/data/input/*.csv
+/data/input/*.bin
 /data/output/*.csv
 /data/output/reference/*.csv
 /data/data_ok
@@ -34,7 +33,7 @@
 /.vscode
 #config
 /config/*.csv
-!config/test_output.csv
-!config/test_without_output.csv
+!config/hgcal_config.csv
+!config/toyDetector_config.csv
 #plots 
 /plots

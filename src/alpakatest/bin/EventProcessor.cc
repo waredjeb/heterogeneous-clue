@@ -16,8 +16,9 @@ namespace edm {
                                  int numberOfStreams,
                                  Alternatives alternatives,
                                  std::vector<std::string> const& esproducers,
-                                 std::filesystem::path const& inputFile)
-      : source_(maxEvents, runForMinutes, registry_, inputFile) {
+                                 std::filesystem::path const& inputFile,
+                                 bool validation)
+      : source_(maxEvents, runForMinutes, registry_, inputFile, validation) {
     for (auto const& name : esproducers) {
       pluginManager_.load(name);
       auto esp = ESPluginFactory::create(name, inputFile);

@@ -53,7 +53,7 @@ namespace {
         << " --maxEvents         Number of events to process (default -1 for all events in the input file)\n"
         << " --runForMinutes     Continue processing the set of 1000 events until this many minutes have passed "
            "(default -1 for disabled; conflicts with --maxEvents)\n"
-        << " --inputFile         Path to the input file (default 'data/input/toyDetector_1k.csv' in the directory of "
+        << " --inputFile         Path to the input file (default 'data/input/raw.bin' in the directory of "
            "the executable)\n"
         << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
         << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
     numberOfStreams = numberOfThreads;
   }
   if (inputFile.empty()) {
-    inputFile = std::filesystem::path(args[0]).parent_path() / "data" / "input" / "toyDetector_1k.csv";
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data" / "input" / "raw.bin";
   }
   if (not std::filesystem::exists(inputFile)) {
     std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
     }
   }
   edm::EventProcessor processor(
-      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), inputFile);
+      maxEvents, runForMinutes, numberOfStreams, std::move(alternatives), std::move(esmodules), inputFile, validation);
 
   if (runForMinutes < 0) {
     std::cout << "Processing " << processor.maxEvents() << " events,";
