@@ -29,25 +29,25 @@ void CLUEAlgoCUDA::init_device() {
 
 void CLUEAlgoCUDA::setup(PointsCloud const& host_pc) {
   // copy input variables
-  cudaCheck(cudaMemcpy(d_points.x.get(), host_pc.x.data(), sizeof(float) * host_pc.n,
-             cudaMemcpyHostToDevice));
-  cudaCheck(cudaMemcpy(d_points.y.get(), host_pc.y.data(), sizeof(float) * host_pc.n,
-             cudaMemcpyHostToDevice));
-  cudaCheck(cudaMemcpy(d_points.layer.get(), host_pc.layer.data(),
-             sizeof(int) * host_pc.n, cudaMemcpyHostToDevice));
-  cudaCheck(cudaMemcpy(d_points.weight.get(), host_pc.weight.data(),
-             sizeof(float) * host_pc.n, cudaMemcpyHostToDevice));
+  cudaCheck(cudaMemcpyAsync(d_points.x.get(), host_pc.x.data(), sizeof(float) * host_pc.n,
+             cudaMemcpyHostToDevice , stream_));
+  cudaCheck(cudaMemcpyAsync(d_points.y.get(), host_pc.y.data(), sizeof(float) * host_pc.n,
+             cudaMemcpyHostToDevice, stream_ ));
+  cudaCheck(cudaMemcpyAsync(d_points.layer.get(), host_pc.layer.data(),
+             sizeof(int) * host_pc.n, cudaMemcpyHostToDevice, stream_ ));
+  cudaCheck(cudaMemcpyAsync(d_points.weight.get(), host_pc.weight.data(),
+             sizeof(float) * host_pc.n, cudaMemcpyHostToDevice, stream_ ) );
   // initialize result and internal variables
   // // result variables
-  cudaCheck(cudaMemset(d_points.rho.get(), 0x00, sizeof(float) * host_pc.n));
-  cudaCheck(cudaMemset(d_points.delta.get(), 0x00, sizeof(float) * host_pc.n));
-  cudaCheck(cudaMemset(d_points.nearestHigher.get(), 0x00, sizeof(int) * host_pc.n));
-  cudaCheck(cudaMemset(d_points.clusterIndex.get(), 0x00, sizeof(int) * host_pc.n));
-  cudaCheck(cudaMemset(d_points.isSeed.get(), 0x00, sizeof(int) * host_pc.n));
+  cudaCheck(cudaMemsetAsync(d_points.rho.get(), 0x00, sizeof(float) * host_pc.n, stream_));
+  cudaCheck(cudaMemsetAsync(d_points.delta.get(), 0x00, sizeof(float) * host_pc.n, stream_));
+  cudaCheck(cudaMemsetAsync(d_points.nearestHigher.get(), 0x00, sizeof(int) * host_pc.n, stream_));
+  cudaCheck(cudaMemsetAsync(d_points.clusterIndex.get(), 0x00, sizeof(int) * host_pc.n, stream_));
+  cudaCheck(cudaMemsetAsync(d_points.isSeed.get(), 0x00, sizeof(int) * host_pc.n, stream_));
   // algorithm internal variables
-  cudaCheck(cudaMemset(d_hist.get(), 0x00, sizeof(LayerTilesCUDA) * NLAYERS));
-  cudaCheck(cudaMemset(d_seeds.get(), 0x00, sizeof(cms::cuda::VecArray<int, maxNSeeds>)));
-  cudaCheck(cudaMemset(d_followers.get(), 0x00,
+  cudaCheck(cudaMemsetAsync(d_hist.get(), 0x00, sizeof(LayerTilesCUDA) * NLAYERS, stream_));
+  cudaCheck(cudaMemsetAsync(d_seeds.get(), 0x00, sizeof(cms::cuda::VecArray<int, maxNSeeds> ), stream_));
+  cudaCheck(cudaMemsetAsync(d_followers.get(), 0x00,
              sizeof(cms::cuda::VecArray<int, maxNFollowers>) * host_pc.n));
 
   cudaStreamSynchronize(stream_);
@@ -79,7 +79,7 @@ void CLUEAlgoCUDA::makeClusters(PointsCloud const& host_pc) {
   const dim3 gridSize_nseeds(ceil(maxNSeeds / 1024.0), 1, 1);
   kernel_assign_clusters << <gridSize_nseeds, blockSize>>>
       (d_seeds.get(), d_followers.get(), d_points.view(), host_pc.n);
-
+ 	cudaStreamSynchronize(stream_);
 //  for(size_t i = 0; i < host_pc.n; i ++) {
 //      printf("%f", d_points.rho[i]);
 //  }

@@ -46,23 +46,23 @@
     cms::cuda::host::unique_ptr<PointsCloud> m_soa;
     results.outResize(device_clusters.n);
 		cudaCheck(cudaMemcpy(results.rho.data(), &(device_clusters.rho), sizeof(float)*device_clusters.n, cudaMemcpyDefault));
-		cudaCheck(cudaMemcpy(results.delta.data(), &(device_clusters.delta), sizeof(results.delta) , cudaMemcpyDefault));
-		cudaCheck(cudaMemcpy(results.nearestHigher.data(), &(device_clusters.nearestHigher), sizeof(results.nearestHigher),  cudaMemcpyDefault));
-		cudaCheck(cudaMemcpy(results.isSeed.data(), &(device_clusters.isSeed), sizeof(results.isSeed) , cudaMemcpyDefault));
-		cudaCheck(cudaMemcpy(results.clusterIndex.data(), &(device_clusters.clusterIndex), sizeof(results.clusterIndex), cudaMemcpyDefault));
+		cudaCheck(cudaMemcpy(results.delta.data(), &(device_clusters.delta), sizeof(float)*device_clusters.n , cudaMemcpyDefault));
+		cudaCheck(cudaMemcpy(results.nearestHigher.data(), &(device_clusters.nearestHigher), sizeof(float)*device_clusters.n,  cudaMemcpyDefault));
+		cudaCheck(cudaMemcpy(results.isSeed.data(), &(device_clusters.isSeed), sizeof(int)*device_clusters.n, cudaMemcpyDefault));
+		cudaCheck(cudaMemcpy(results.clusterIndex.data(), &(device_clusters.clusterIndex), sizeof(int)*device_clusters.n, cudaMemcpyDefault));
     cudaStreamSynchronize(stream);
 
     std::cout << "Data transferred back to host" << std::endl;
 
     Parameters par;
     par = eventSetup.get<Parameters>();
-    if (true) {
-      auto temp_outDir = eventSetup.get<std::filesystem::path>();
-      std::string input_file_name = temp_outDir.filename();
-      std::string output_file_name = create_outputfileName(input_file_name, par.dc, par.rhoc, par.outlierDeltaFactor);
-      std::filesystem::path outDir = temp_outDir.parent_path() / output_file_name;
-
-      std::ofstream clueOut(outDir);
+//    if (true) {
+//      auto temp_outDir = eventSetup.get<std::filesystem::path>();
+//      std::string input_file_name = temp_outDir.filename();
+//      std::string output_file_name = create_outputfileName(input_file_name, par.dc, par.rhoc, par.outlierDeltaFactor);
+//      std::filesystem::path outDir = temp_outDir.parent_path() / output_file_name;
+//
+//      std::ofstream clueOut(outDir);
 
       clueOut << "index,x,y,layer,weight,rho,delta,nh,isSeed,clusterId\n";
       for (unsigned int i = 0; i < device_clusters.n; i++) {
@@ -75,7 +75,7 @@
       clueOut.close();
 
       std::cout << "Ouput was saved in " << outDir << std::endl;
-    }
+  //  }
 		
     ctx.emplace(event, resultsToken_, std::move(results));
   }
