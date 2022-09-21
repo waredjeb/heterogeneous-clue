@@ -1,5 +1,5 @@
-#include "Framework/Event.h"
 #include "Framework/EventSetup.h"
+#include "Framework/Event.h"
 #include "Framework/PluginFactory.h"
 #include "Framework/EDProducer.h"
 
@@ -10,7 +10,6 @@
 #include "DataFormats/CLUE_config.h"
 #include "CUDADataFormats/PointsCloudCUDA.h"
 #include "CLUEAlgoCUDA.h"
-
 
 class CLUECUDAClusterizer : public edm::EDProducer {
 public:
@@ -35,6 +34,7 @@ void CLUECUDAClusterizer::produce(edm::Event& event, const edm::EventSetup& even
   auto stream = ctx.stream();
   CLUEAlgoCUDA clueAlgo(par.dc, par.rhoc, par.outlierDeltaFactor, stream, pc.n);
   clueAlgo.makeClusters(pc);
+
   ctx.emplace(event, clusterToken_, std::move(clueAlgo.d_points));
 }
 

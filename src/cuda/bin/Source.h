@@ -15,11 +15,17 @@
 namespace edm {
   class Source {
   public:
-    explicit Source(int maxEvents, int runForMinutes, ProductRegistry& reg, std::filesystem::path const& inputFile);
+    explicit Source(int maxEvents,
+                    int runForMinutes,
+                    ProductRegistry& reg,
+                    std::filesystem::path const& inputFile,
+                    bool validation);
+
     void startProcessing();
 
     int maxEvents() const { return maxEvents_; }
     int processedEvents() const { return numEvents_; }
+
     // thread safe
     std::unique_ptr<Event> produce(int streamId, ProductRegistry const& reg);
 
@@ -36,6 +42,7 @@ namespace edm {
     std::atomic<int> numEvents_ = 0;
     EDPutTokenT<PointsCloud> const cloudToken_;
     std::vector<PointsCloud> cloud_;
+    bool validation_;
   };
 }  // namespace edm
 

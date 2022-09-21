@@ -13,26 +13,30 @@
 
 #include <cuda_runtime.h>
 
+#include "DataFormats/CLUE_config.h"
 #include "CUDACore/getCachingDeviceAllocator.h"
 #include "EventProcessor.h"
 #include "PosixClockGettime.h"
-#include "DataFormats/CLUE_config.h"
 
 namespace {
   void print_help(std::string const& name) {
-    std::cout
-        << name
-        << ": [--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--data PATH] [--transfer] [--validation] "
-           "[--empty]\n\n"
-        << "Options\n"
-        << " --numberOfThreads   Number of threads to use (default 1, use 0 to use all CPU cores)\n"
-        << " --numberOfStreams   Number of concurrent events (default 0 = numberOfThreads)\n"
-        << " --maxEvents         Number of events to process (default -1 for all events in the input file)\n"
-        << " --data              Path to the 'data' directory (default 'data' in the directory of the executable)\n"
-        << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
-        << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
-        << " --empty             Ignore all producers (for testing only)\n"
-        << std::endl;
+    std::cout << name
+              << ": [--numberOfThreads NT] [--numberOfStreams NS] [--maxEvents ME] [--inputFile "
+                 "PATH] [--configFile] [--transfer] [--validation] "
+                 "[--empty]\n\n"
+              << "Options\n"
+              << " --numberOfThreads   Number of threads to use (default 1, use 0 to use all CPU cores)\n"
+              << " --numberOfStreams   Number of concurrent events (default 0 = numberOfThreads)\n"
+              << " --maxEvents         Number of events to process (default -1 for all events in the input file)\n"
+              << " --inputFile         Path to the input file to cluster with CLUE (default is set to "
+                 "data/input/raw.bin)'\n"
+              << " --configFile        Path to the config file with the parameters (dc, rhoc, outlierDeltaFactor, "
+                 "produceOutput) to run CLUE (implies --transfer, default 'config/hgcal_config.csv' in the directory "
+                 "of the executable)\n"
+              << " --transfer          Transfer results from GPU to CPU (default is to leave them on GPU)\n"
+              << " --validation        Run (rudimentary) validation at the end (implies --transfer)\n"
+              << " --empty             Ignore all producers (for testing only)\n"
+              << std::endl;
   }
 }  // namespace
 
@@ -75,6 +79,10 @@ int main(int argc, char** argv) {
     } else if (*i == "--validation") {
       transfer = true;
       validation = true;
+      std::string fileName(inputFile);
+      if (fileName.find("toyDetector") != std::string::npos) {
+        configFile = std::filesystem::path(args[0]).parent_path() / "config" / "toyDetector_config.csv";
+      }
     } else if (*i == "--empty") {
       empty = true;
     } else {
@@ -94,14 +102,14 @@ int main(int argc, char** argv) {
     numberOfStreams = numberOfThreads;
   }
   if (inputFile.empty()) {
-    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/toyDetector_10k.csv";
+    inputFile = std::filesystem::path(args[0]).parent_path() / "data/input/raw.bin";
   }
   if (not std::filesystem::exists(inputFile)) {
     std::cout << "Input file '" << inputFile << "' does not exist" << std::endl;
     return EXIT_FAILURE;
   }
   if (configFile.empty()) {
-    configFile = std::filesystem::path(args[0]).parent_path() / "config" / "test_without_output.csv";
+    configFile = std::filesystem::path(args[0]).parent_path() / "config" / "hgcal_config.csv";
   }
   if (not std::filesystem::exists(configFile)) {
     std::cout << "Config file '" << configFile << "' does not exist" << std::endl;
@@ -156,16 +164,22 @@ int main(int argc, char** argv) {
     esmodules = {"CLUECUDAClusterizerESProducer"};
     if (transfer) {
       // add modules for transfer
-    edmodules.emplace_back("CLUEOutputProducer");
-    esmodules.emplace_back("CLUEOutputESProducer");
+      edmodules.emplace_back("CLUEOutputProducer");
+      esmodules.emplace_back("CLUEOutputESProducer");
     }
     if (validation) {
       esmodules.emplace_back("CLUEValidatorESProducer");
       edmodules.emplace_back("CLUEValidator");
     }
   }
-  edm::EventProcessor processor(
-      maxEvents, runForMinutes, numberOfStreams, std::move(edmodules), std::move(esmodules), inputFile, configFile);
+  edm::EventProcessor processor(maxEvents,
+                                runForMinutes,
+                                numberOfStreams,
+                                std::move(edmodules),
+                                std::move(esmodules),
+                                inputFile,
+                                configFile,
+                                validation);
   maxEvents = processor.maxEvents();
 
   if (runForMinutes < 0) {
@@ -175,7 +189,6 @@ int main(int argc, char** argv) {
   }
   {
     std::cout << " with " << numberOfStreams << " concurrent events (";
-    bool need_comma = false;
     std::cout << ") and " << numberOfThreads << " threads." << std::endl;
   }
 

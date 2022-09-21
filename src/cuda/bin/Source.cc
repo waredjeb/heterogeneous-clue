@@ -5,20 +5,42 @@
 
 #include "Source.h"
 
+struct Point {
+  float x;
+  float y;
+  float layer;
+  float weight;
+};
+
 namespace {
-  PointsCloud readFile(std::filesystem::path const &inputFile) {
+  PointsCloud readRaw(std::ifstream &inputFile, uint32_t n_points) {
+    PointsCloud data;
+    data.n = n_points;
+    Point raw;
+    for (unsigned int ipoint = 0; ipoint < n_points; ++ipoint) {
+      inputFile.read(reinterpret_cast<char *>(&raw), sizeof(Point));
+      data.x.emplace_back(raw.x);
+      data.y.emplace_back(raw.y);
+      data.layer.emplace_back(raw.layer);
+      data.weight.emplace_back(raw.weight);
+    }
+    return data;
+  }
+
+  PointsCloud readToyDetectors(std::filesystem::path const &toyDetector) {
     PointsCloud data;
     for (int l = 0; l < NLAYERS; l++) {
-      std::ifstream in(inputFile);
-      std::string value = "";
-      while (getline(in, value, ',')) {
-        data.x.emplace_back(std::stof(value));
-        getline(in, value, ',');
-        data.y.emplace_back(std::stof(value));
-        getline(in, value, ',');
-        data.layer.emplace_back(std::stoi(value) + l);
-        getline(in, value);
-        data.weight.emplace_back(std::stof(value));
+      std::ifstream in(toyDetector, std::ios::binary);
+      while (true) {
+        Point raw;
+        in.read((char *)&raw, sizeof(Point));
+        if (in.eof()) {
+          break;
+        }
+        data.x.emplace_back(raw.x);
+        data.y.emplace_back(raw.y);
+        data.layer.emplace_back(raw.layer + l);
+        data.weight.emplace_back(raw.weight);
       }
       in.close();
     }
@@ -28,12 +50,45 @@ namespace {
 }  // namespace
 
 namespace edm {
-  Source::Source(int maxEvents, int runForMinutes, ProductRegistry &reg, std::filesystem::path const &inputFile)
-      : maxEvents_(maxEvents), runForMinutes_(runForMinutes), cloudToken_(reg.produces<PointsCloud>()) {
+  Source::Source(
+      int maxEvents, int runForMinutes, ProductRegistry &reg, std::filesystem::path const &inputFile, bool validation)
+      : maxEvents_(maxEvents),
+        runForMinutes_(runForMinutes),
+        cloudToken_(reg.produces<PointsCloud>()),
+        validation_(validation) {
     std::string input(inputFile);
-    cloud_.emplace_back(readFile(inputFile));
-    if (runForMinutes_ < 0 and maxEvents_ < 0) {
-      maxEvents_ = 10;
+    if (input.find("toyDetector") != std::string::npos) {
+      cloud_.emplace_back(readToyDetectors(inputFile));
+      if (runForMinutes_ < 0 and maxEvents_ < 0) {
+        maxEvents_ = 10;
+      }
+    }
+
+    else {
+      std::ifstream in_raw(inputFile, std::ios::binary);
+      uint32_t n_points;
+      in_raw.exceptions(std::ifstream::badbit);
+      in_raw.read(reinterpret_cast<char *>(&n_points), sizeof(uint32_t));
+
+      while (not in_raw.eof()) {
+        in_raw.exceptions(std::ifstream::badbit | std::ifstream::failbit | std::ifstream::eofbit);
+        cloud_.emplace_back(readRaw(in_raw, n_points));
+
+        // next event
+        in_raw.exceptions(std::ifstream::badbit);
+        in_raw.read(reinterpret_cast<char *>(&n_points), sizeof(uint32_t));
+      }
+      if (runForMinutes_ < 0 and maxEvents_ < 0) {
+        maxEvents_ = cloud_.size();
+      }
+    }
+    if (validation_) {
+      for (unsigned int i = 0; i != cloud_.size(); ++i) {
+        assert(cloud_[i].n == cloud_[i].x.size());
+        assert(cloud_[i].x.size() == cloud_[i].y.size());
+        assert(cloud_[i].y.size() == cloud_[i].layer.size());
+        assert(cloud_[i].layer.size() == cloud_[i].weight.size());
+      }
     }
   }
 

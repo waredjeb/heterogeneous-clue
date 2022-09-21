@@ -20,7 +20,8 @@ namespace edm {
                             std::vector<std::string> const& path,
                             std::vector<std::string> const& esproducers,
                             std::filesystem::path const& datadir,
-                            std::filesystem::path const& configFile);
+                            std::filesystem::path const& configFile,
+                            bool validation);
 
     int maxEvents() const { return source_.maxEvents(); }
     int processedEvents() const { return source_.processedEvents(); }

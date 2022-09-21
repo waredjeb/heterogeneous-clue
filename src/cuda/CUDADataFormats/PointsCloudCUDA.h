@@ -1,5 +1,5 @@
-#ifndef Points_Cloud_Alpaka_h
-#define Points_Cloud_Alpaka_h
+#ifndef Points_Cloud_CUDA_h
+#define Points_Cloud_CUDA_h
 
 #include <memory>
 
@@ -14,20 +14,18 @@ public:
   PointsCloudCUDA() = delete;
   explicit PointsCloudCUDA(cudaStream_t stream, uint32_t numberOfPoints)
       // input variables
-  {
-
-    x = cms::cuda::make_device_unique<float[]>(reserve, stream);
-    y = cms::cuda::make_device_unique<float[]>(reserve, stream);
-    layer = cms::cuda::make_device_unique<int[]>(reserve, stream);
-    weight = cms::cuda::make_device_unique<float[]>(reserve, stream);
-    // result variables
-    rho = cms::cuda::make_device_unique<float[]>(reserve, stream);
-    delta = cms::cuda::make_device_unique<float[]>(reserve, stream);
-    nearestHigher = cms::cuda::make_device_unique<int[]>(reserve, stream);
-    clusterIndex = cms::cuda::make_device_unique<int[]>(reserve, stream);
-    isSeed = cms::cuda::make_device_unique<int[]>(reserve, stream);
-    n = numberOfPoints;
-    view_d = cms::cuda::make_device_unique<PointsCloudCUDAView>(stream);
+      : x{cms::cuda::make_device_unique<float[]>(reserve, stream)},
+        y{cms::cuda::make_device_unique<float[]>(reserve, stream)},
+        layer{cms::cuda::make_device_unique<int[]>(reserve, stream)},
+        weight{cms::cuda::make_device_unique<float[]>(reserve, stream)},
+        // result variables
+        rho{cms::cuda::make_device_unique<float[]>(reserve, stream)},
+        delta{cms::cuda::make_device_unique<float[]>(reserve, stream)},
+        nearestHigher{cms::cuda::make_device_unique<int[]>(reserve, stream)},
+        clusterIndex{cms::cuda::make_device_unique<int[]>(reserve, stream)},
+        isSeed{cms::cuda::make_device_unique<int[]>(reserve, stream)},
+        n{numberOfPoints},
+        view_d{cms::cuda::make_device_unique<PointsCloudCUDAView>(stream)} {
     auto view_h = cms::cuda::make_host_unique<PointsCloudCUDAView>(stream);
     view_h->x = x.get();
     view_h->y = y.get();
@@ -40,8 +38,7 @@ public:
     view_h->isSeed = isSeed.get();
     view_h->n = numberOfPoints;
 
-    cudaMemcpy(view_d.get(), view_h.get(), sizeof(PointsCloudCUDAView),
-               cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(view_d.get(), view_h.get(), sizeof(PointsCloudCUDAView), cudaMemcpyHostToDevice, stream);
     cudaStreamSynchronize(stream);
   }
   PointsCloudCUDA(PointsCloudCUDA const &) = delete;

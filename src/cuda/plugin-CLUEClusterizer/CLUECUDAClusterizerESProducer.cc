@@ -28,6 +28,7 @@ void CLUECUDAClusterizerESProducer::produce(edm::EventSetup& eventSetup) {
     par.produceOutput = static_cast<bool>(std::stoi(value));
   }
   iFile.close();
+
   auto parameters = std::make_unique<Parameters>(par);
   eventSetup.put(std::move(parameters));
 }

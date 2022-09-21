@@ -11,14 +11,12 @@ class CLUEAlgoCUDA {
 public:
   // constructor
   CLUEAlgoCUDA() = delete;
-  explicit CLUEAlgoCUDA(float const &dc, float const &rhoc,
-                        float const &outlierDeltaFactor, cudaStream_t stream,
+  explicit CLUEAlgoCUDA(float const &dc,
+                        float const &rhoc,
+                        float const &outlierDeltaFactor,
+                        cudaStream_t stream,
                         uint32_t const &numberOfPoints)
-      : d_points{stream, numberOfPoints},
-        dc_{dc},
-        rhoc_{rhoc},
-        outlierDeltaFactor_{outlierDeltaFactor},
-        stream_{stream} {
+      : d_points{stream, numberOfPoints}, dc_{dc}, rhoc_{rhoc}, outlierDeltaFactor_{outlierDeltaFactor}, stream_{stream} {
     init_device();
   }
 
@@ -39,8 +37,7 @@ private:
   cudaStream_t stream_ = nullptr;
   cms::cuda::device::unique_ptr<LayerTilesCUDA[]> d_hist;
   cms::cuda::device::unique_ptr<cms::cuda::VecArray<int, maxNSeeds>> d_seeds;
-  cms::cuda::device::unique_ptr<cms::cuda::VecArray<int, maxNFollowers> []>
-      d_followers;
+  cms::cuda::device::unique_ptr<cms::cuda::VecArray<int, maxNFollowers>[]> d_followers;
 
   // private methods
   void init_device();
