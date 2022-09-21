@@ -10,6 +10,7 @@
 #include "AlpakaVecArray.h"
 #include "DataFormats/LayerTilesConstants.h"
 
+// namespace ALPAKA_ACCELERATOR_NAMESPACE {
 using alpakaVect = cms::alpakatools::VecArray<int, LayerTilesConstants::maxTileDepth>;
 
 #if !defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && !defined(ALPAKA_ACC_GPU_HIP_ENABLED)
@@ -70,5 +71,6 @@ private:
   cms::alpakatools::VecArray<alpakaVect, LayerTilesConstants::nColumns * LayerTilesConstants::nRows> layerTiles_;
   const TAcc& acc_;
 };
+// }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
 
 #endif
