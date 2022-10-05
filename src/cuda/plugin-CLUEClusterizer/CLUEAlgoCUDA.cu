@@ -44,9 +44,9 @@ void CLUEAlgoCUDA::setup(PointsCloud const& host_pc) {
   // algorithm internal variables
   cudaCheck(cudaMemsetAsync(d_hist.get(), 0x00, sizeof(LayerTilesCUDA) * NLAYERS, stream_));
   cudaCheck(cudaMemsetAsync(d_seeds.get(), 0x00, sizeof(cms::cuda::VecArray<int, maxNSeeds>), stream_));
-  cudaCheck(cudaMemsetAsync(d_followers.get(), 0x00, sizeof(cms::cuda::VecArray<int, maxNFollowers>) * host_pc.n));
+  cudaCheck(cudaMemsetAsync(d_followers.get(), 0x00, sizeof(cms::cuda::VecArray<int, maxNFollowers>) * host_pc.n, stream_));
+	cudaStreamSynchronize(stream_);
 
-  cudaStreamSynchronize(stream_);
 }
 
 void CLUEAlgoCUDA::makeClusters(PointsCloud const& host_pc) {
@@ -57,11 +57,11 @@ void CLUEAlgoCUDA::makeClusters(PointsCloud const& host_pc) {
   ////////////////////////////////////////////
   const dim3 blockSize(1024, 1, 1);
   const dim3 gridSize(ceil(host_pc.n / static_cast<float>(blockSize.x)), 1, 1);
-  kernel_compute_histogram<<<gridSize, blockSize>>>(d_hist.get(), d_points.view(), host_pc.n);
-  kernel_calculate_density<<<gridSize, blockSize>>>(d_hist.get(), d_points.view(), dc_, host_pc.n);
-  kernel_calculate_distanceToHigher<<<gridSize, blockSize>>>(
+  kernel_compute_histogram<<<gridSize, blockSize,0, stream_>>>(d_hist.get(), d_points.view(), host_pc.n);
+  kernel_calculate_density<<<gridSize, blockSize, 0, stream_ >>>(d_hist.get(), d_points.view(), dc_, host_pc.n);
+  kernel_calculate_distanceToHigher<<<gridSize, blockSize, 0, stream_>>>(
       d_hist.get(), d_points.view(), outlierDeltaFactor_, dc_, host_pc.n);
-  kernel_find_clusters<<<gridSize, blockSize>>>(
+  kernel_find_clusters<<<gridSize, blockSize, 0, stream_>>>(
       d_seeds.get(), d_followers.get(), d_points.view(), outlierDeltaFactor_, dc_, rhoc_, host_pc.n);
 
   ////////////////////////////////////////////
@@ -69,6 +69,6 @@ void CLUEAlgoCUDA::makeClusters(PointsCloud const& host_pc) {
   // 1 point per seeds
   ////////////////////////////////////////////
   const dim3 gridSize_nseeds(ceil(maxNSeeds / static_cast<float>(blockSize.x)), 1, 1);
-  kernel_assign_clusters<<<gridSize_nseeds, blockSize>>>(d_seeds.get(), d_followers.get(), d_points.view(), host_pc.n);
-  cudaStreamSynchronize(stream_);
+  kernel_assign_clusters<<<gridSize_nseeds, blockSize, 0, stream_>>>(d_seeds.get(), d_followers.get(), d_points.view(), host_pc.n);
+	cudaStreamSynchronize(stream_);
 }

@@ -3,7 +3,7 @@
 
 // #include <optional>
 
-#include "../CUDACore/device_unique_ptr.h"
+#include "CUDACore/device_unique_ptr.h"
 #include "CUDADataFormats/PointsCloudCUDA.h"
 #include "CUDADataFormats/LayerTilesCUDA.h"
 
